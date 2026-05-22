@@ -11,7 +11,9 @@ public enum StatusType
     Mark,       // 标记：受伤增加 effectValue%
     Taunt,      // 嘲讽：强制攻击施加者
     Protected,  // 援护：伤害转移给施加者
-    Bleed       // 流血：每回合扣 effectValue 点血
+    Bleed,      // 流血：每回合扣 effectValue 点血
+    Berserk,    // 狂暴：STR+5, DEF-3
+    Enlightened // 启迪：INT+2
 }
 
 /// <summary>

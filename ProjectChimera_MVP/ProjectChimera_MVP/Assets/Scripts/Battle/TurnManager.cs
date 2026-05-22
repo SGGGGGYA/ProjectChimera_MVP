@@ -85,37 +85,26 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
-        // 检查压力崩溃（压力满 100 → 随机攻击+强制休息）
-        if (currentUnit.stress >= UnitData.MaxStress)
+        // 检查压力崩溃
+        if (currentUnit.stress >= UnitData.MaxStressConst)
         {
-            BattleLog.Add($"<color=red>{currentUnit.unitName} 压力崩溃！随机攻击后强制休息！</color>");
+            StressManager.TryResolveBreakdown(currentUnit, bm);
             currentUnit.stress = 0;
 
-            if (bm == null)
+            if (StressManager.ShouldSkipTurn(currentUnit))
             {
-                // 没有 BattleManager，跳过随机攻击
+                BattleLog.Add($"<color=red>{currentUnit.unitName} 因崩溃状态跳过回合！</color>");
+                currentUnit.TickStatusEffects();
                 currentTurnIndex++;
                 StartNextTurn();
                 return;
             }
+        }
 
-            // 随机攻击一个活着的单位（不分敌我）
-            var allAlive = new List<UnitData>();
-            allAlive.AddRange(bm.playerUnits.FindAll(u => u.currentHP > 0));
-            allAlive.AddRange(bm.enemyUnits.FindAll(u => u.currentHP > 0));
-            allAlive.Remove(currentUnit);
-
-            if (allAlive.Count > 0)
-            {
-                UnitData randomTarget = allAlive[Random.Range(0, allAlive.Count)];
-                int dmg = Mathf.Max(1, currentUnit.STR + currentUnit.weaponAttack - randomTarget.DEF);
-                BattleLog.Add($"[崩溃] {currentUnit.unitName} 失控攻击了 {randomTarget.unitName}！");
-                bm.DealDamage(currentUnit, randomTarget, dmg);
-            }
-
-            currentTurnIndex++;
-            StartNextTurn();
-            return;
+        // 低压力安心回压
+        if (currentUnit.stress < StressManager.config.lowStressThreshold && currentUnit.stress > 0)
+        {
+            currentUnit.stress = Mathf.Max(0, currentUnit.stress + StressManager.config.lowStressRecovery);
         }
 
         // 处理流血（回合开始时扣血）
@@ -157,6 +146,7 @@ public class TurnManager : MonoBehaviour
     {
         Debug.Log($"[TurnManager] {currentUnit.unitName} 结束回合");
         currentUnit.TickStatusEffects();
+        StressManager.TickBreakdown(currentUnit);
         currentTurnIndex++;
         StartNextTurn();
     }
@@ -215,9 +205,9 @@ public class TurnManager : MonoBehaviour
                 else
                 {
                     // 平A（如果没选技能）
-                    int rawDmg = currentUnit.STR + currentUnit.weaponAttack;
+                    int rawDmg = currentUnit.GetEffectiveSTR() + currentUnit.weaponAttack;
                     float strCoeff = currentUnit.GetStrengthCoefficient();
-                    int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - chosenTarget.DEF));
+                    int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - chosenTarget.GetEffectiveDEF()));
                     bm.DealDamage(currentUnit, chosenTarget, damage);
                 }
             }
@@ -243,7 +233,7 @@ public class TurnManager : MonoBehaviour
                               .FirstOrDefault();
         if (lowHpAlly != null)
         {
-            skill = currentUnit.skills.Find(s => s.effectType == SkillEffectType.Heal);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Heal);
             target = lowHpAlly;
             if (skill != null) return;
         }
@@ -254,7 +244,7 @@ public class TurnManager : MonoBehaviour
                                               .FirstOrDefault();
         if (highStressPlayer != null)
         {
-            skill = currentUnit.skills.Find(s => s.effectType == SkillEffectType.Stress);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Stress);
             if (skill != null)
             {
                 target = highStressPlayer;
@@ -265,7 +255,7 @@ public class TurnManager : MonoBehaviour
         // 情况2b：队友都健康且有多个敌人 → 给随机队友上护盾
         if (allies.Count > 0)
         {
-            skill = currentUnit.skills.Find(s => s.effectType == SkillEffectType.Shield);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Shield);
             if (skill != null)
             {
                 target = allies[Random.Range(0, allies.Count)];
@@ -274,7 +264,7 @@ public class TurnManager : MonoBehaviour
         }
 
         // 情况3：只剩自己或没有治疗/护盾/压力技能 → 火球打血最少玩家
-        skill = currentUnit.skills.Find(s => s.effectType == SkillEffectType.DirectDamage
+        skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.DirectDamage
                                           || s.skillName == "火球术");
         var players = bm.playerUnits.Where(u => u.currentHP > 0)
                                     .OrderBy(u => u.currentHP)

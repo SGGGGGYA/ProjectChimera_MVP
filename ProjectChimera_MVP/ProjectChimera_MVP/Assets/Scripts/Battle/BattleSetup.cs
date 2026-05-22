@@ -308,13 +308,15 @@ public class BattleSetup : MonoBehaviour
         unit.isPlayer = data.isPlayer;
         unit.VIT = data.VIT;
         unit.STR = data.STR;
-        unit.DEF = data.DEF;
+        unit.baseDefense = data.DEF;
         unit.AGI = data.AGI;
         unit.INT = data.INT;
         unit.weaponAttack = data.weaponAttack;
         unit.level = data.level;
         unit.currentExp = data.currentExp;
         unit.currentHP = unit.MaxHp;
+        unit.stress = data.stress;
+        unit.stressResistRate = Mathf.Min(StressManager.config.baseResist + data.level * StressManager.config.resistPerLevel, StressManager.config.maxResist);
         unit.skills = GameManager.GetDefaultSkills(data.unitName);
 
         // UnitClickDetector 已在预制体上，无需 AddComponent

@@ -101,15 +101,24 @@ public class BattleManager : MonoBehaviour
         if (battleOver) return;
         if (TurnManager.Instance == null) return;
 
-        // 检测回合变化：刷新技能栏 + 状态面板
-        if (TurnManager.Instance.currentUnit != lastTurnUnit)
+        var current = TurnManager.Instance.currentUnit;
+        if (current != lastTurnUnit)
         {
-            lastTurnUnit = TurnManager.Instance.currentUnit;
+            lastTurnUnit = current;
+
+            if (current != null && current.IsBreakdownActive() && StressManager.ShouldSkipTurn(current))
+            {
+                BattleLog.Add($"[{current.unitName}] 处于崩溃状态，行动跳过");
+                if (skillBarController != null)
+                    skillBarController.RefreshSkills(null);
+                EndPlayerTurn();
+                return;
+            }
+
             if (skillBarController != null)
                 skillBarController.RefreshSkills(lastTurnUnit);
         }
 
-        // 非玩家回合：隐藏技能栏
         if (!TurnManager.Instance.isPlayerTurn)
         {
             if (skillBarController != null)
@@ -451,101 +460,11 @@ public class BattleManager : MonoBehaviour
     public void ExecuteSkill(UnitData attacker, SkillData skill, UnitData target)
     {
         if (attacker == null) return;
-        BattleLog.Add($"[技能] {attacker.unitName} 释放 [{skill.skillName}]");
 
-        switch (skill.effectType)
+        if (skill.commands != null && skill.commands.Count > 0)
         {
-            case SkillEffectType.DirectDamage:
-                ApplyDirectDamage(attacker, skill, target);
-                break;
-            case SkillEffectType.AoEDamage:
-                foreach (var enemy in enemyUnits.Where(e => e.currentHP > 0).ToList())
-                    ApplyDirectDamage(attacker, skill, enemy);
-                break;
-            case SkillEffectType.Stun:
-                ApplyDirectDamage(attacker, skill, target);
-                if (target != null && target.currentHP > 0)
-                    target.AddStatus(new StatusEffect(StatusType.Stun, attacker.unitName,
-                        Mathf.RoundToInt(skill.effectValue)));
-                break;
-            case SkillEffectType.Taunt:
-                ApplyDirectDamage(attacker, skill, target);
-                if (target != null && target.currentHP > 0)
-                    target.AddStatus(new StatusEffect(StatusType.Taunt, attacker.unitName,
-                        skill.effectDuration));
-                break;
-            case SkillEffectType.Mark:
-                ApplyDirectDamage(attacker, skill, target);
-                if (target != null && target.currentHP > 0)
-                    target.AddStatus(new StatusEffect(StatusType.Mark, attacker.unitName,
-                        skill.effectDuration, skill.effectValue));
-                break;
-            case SkillEffectType.Protect:
-                if (target != null)
-                {
-                    foreach (var p in playerUnits)
-                        p.RemoveStatus(StatusType.Protected);
-                    target.AddStatus(new StatusEffect(StatusType.Protected, attacker.unitName,
-                        skill.effectDuration));
-                    BattleLog.Add($"[援护] {attacker.unitName} 正在保护 {target.unitName}");
-                }
-                break;
-
-            // ===== 新技能效果 =====
-
-            case SkillEffectType.Heal:
-                if (target != null)
-                {
-                    int rawHeal = skill.baseDamage + attacker.INT * Mathf.RoundToInt(skill.strScaling + skill.agiScaling);
-                    int healAmount = Mathf.Min(rawHeal, target.MaxHp - target.currentHP);
-                    target.currentHP += healAmount;
-                    target.UpdateHPUI();
-                    BattleLog.Add($"[治疗] {attacker.unitName} 为 {target.unitName} 恢复了 {healAmount} 点生命");
-                }
-                break;
-
-            case SkillEffectType.Shield:
-                if (target != null)
-                {
-                    int shieldAmount = Mathf.RoundToInt(skill.effectValue);
-                    target.shieldHP += shieldAmount;
-                    BattleLog.Add($"[护盾] {attacker.unitName} 为 {target.unitName} 附加了 {shieldAmount} 点护盾");
-                }
-                break;
-
-            case SkillEffectType.Bleed:
-                ApplyDirectDamage(attacker, skill, target);
-                if (target != null && target.currentHP > 0)
-                {
-                    target.AddStatus(new StatusEffect(StatusType.Bleed, attacker.unitName,
-                        skill.effectDuration, skill.effectValue));
-                    BattleLog.Add($"[流血] {target.unitName} 将每回合损失 {skill.effectValue} 点生命，持续{skill.effectDuration}回合");
-                }
-                break;
-
-            case SkillEffectType.Stress:
-                if (target != null)
-                {
-                    int stressAmount = Mathf.RoundToInt(skill.effectValue);
-                    target.AddStress(stressAmount);
-                }
-                break;
+            CommandExecutor.Execute(attacker, skill, target, this, playerUnits, enemyUnits);
         }
-    }
-
-    void ApplyDirectDamage(UnitData attacker, SkillData skill, UnitData target)
-    {
-        if (target == null || target.currentHP <= 0) return;
-
-        int rawDmg = attacker.CalculateDamage(skill);
-        float strCoeff = attacker.GetStrengthCoefficient();
-        int finalDmg = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - target.DEF));
-
-        float markMultiplier = target.GetIncomingDamageMultiplier();
-        finalDmg = Mathf.RoundToInt(finalDmg * markMultiplier);
-        finalDmg = Mathf.Max(1, finalDmg);
-
-        DealDamage(attacker, target, finalDmg);
     }
 
     // ==================== 基础攻击 ====================
@@ -564,9 +483,9 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        int rawDmg = attacker.STR + attacker.weaponAttack;
+        int rawDmg = attacker.GetEffectiveSTR() + attacker.weaponAttack;
         float strCoeff = attacker.GetStrengthCoefficient();
-        int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - target.DEF));
+        int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - target.GetEffectiveDEF()));
         DealDamage(attacker, target, damage);
 
         if (!battleOver)
@@ -609,8 +528,7 @@ public class BattleManager : MonoBehaviour
         if (damage > 0)
         {
             BattleLog.Add($"{attacker.unitName} 对 {target.unitName} 造成 {damage} 点伤害！");
-            // 受击压力累积
-            target.AddStress(damage / 2 + 2);
+            StressManager.AddStress(target, StressManager.config.onTakeDamage, StressTag.Combat);
         }
 
         if (damagePopupPrefab != null)
@@ -631,12 +549,11 @@ public class BattleManager : MonoBehaviour
             target.UpdateHPUI();
             BattleLog.Add($"{target.unitName} 被击败！");
 
-            // 友方阵亡 → 存活队友压力 +20
             var allies = enemyUnits.Contains(target) ? playerUnits : enemyUnits;
             foreach (var ally in allies)
             {
                 if (ally.currentHP > 0)
-                    ally.AddStress(20);
+                    StressManager.AddStress(ally, StressManager.config.onAllyDeath, StressTag.AllyDown);
             }
 
             if (enemyUnits.Contains(target))
@@ -729,10 +646,11 @@ public class BattleManager : MonoBehaviour
                 data.currentExp = unit.currentExp;
                 data.VIT = unit.VIT;
                 data.STR = unit.STR;
-                data.DEF = unit.DEF;
+                data.DEF = unit.baseDefense;
                 data.AGI = unit.AGI;
                 data.INT = unit.INT;
                 data.weaponAttack = unit.weaponAttack;
+                data.stress = unit.stress;
             }
             gm.ReturnToWorldMap();
         }

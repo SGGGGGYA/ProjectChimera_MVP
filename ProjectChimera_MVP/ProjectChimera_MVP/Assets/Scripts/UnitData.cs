@@ -1,31 +1,59 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class UnitData : MonoBehaviour
 {
-    [Header("基础属性")]
+    [Header("基本信息")]
     public string unitName;
-    public int VIT = 10;
-    public int STR = 10;
-    public int DEF = 5;
-    public int AGI = 5;
-    public int INT = 3;
+
+    [Header("三层属性")]
+    public PrimaryAttributes primaryAttributes = new PrimaryAttributes(10, 10, 5, 3);
+    public int baseDefense = 5;
+    public List<AttributeModifier> modifiers = new List<AttributeModifier>();
+
+    public int VIT { get => primaryAttributes.VIT; set => primaryAttributes.VIT = value; }
+    public int STR { get => primaryAttributes.STR; set => primaryAttributes.STR = value; }
+    public int AGI { get => primaryAttributes.AGI; set => primaryAttributes.AGI = value; }
+    public int INT { get => primaryAttributes.INT; set => primaryAttributes.INT = value; }
+    public int STR_Effective => primaryAttributes.STR + GetModifierSum(AttributeTarget.STR);
+    public int INT_Effective => primaryAttributes.INT + GetModifierSum(AttributeTarget.INT);
+    public int DEF_Effective => baseDefense + GetModifierSum(AttributeTarget.DEF);
+    public int MaxHp => primaryAttributes.VIT * 5 + GetClassBaseHP() + GetModifierSum(AttributeTarget.MaxHP);
+    public int SPD => primaryAttributes.AGI * 2 + GetModifierSum(AttributeTarget.SPD);
+    public int ACC => 80 + primaryAttributes.AGI * 2 + GetModifierSum(AttributeTarget.ACC);
+    public int DOD => Mathf.RoundToInt(primaryAttributes.AGI * 1.5f) + GetModifierSum(AttributeTarget.DOD);
+
+    int GetModifierSum(AttributeTarget target)
+    {
+        int sum = 0;
+        foreach (var mod in modifiers)
+            if (mod.type == ModifierType.Add && mod.target == target)
+                sum += Mathf.RoundToInt(mod.value);
+        return sum;
+    }
 
     [Header("装备")]
-    public int weaponAttack;    // 武器攻击力
+    public int weaponAttack;
 
     [Header("身份标记")]
     public bool isPlayer;
 
     [Header("血量状态")]
     public int currentHP;
-    public int MaxHp => VIT * 5 + 40;
-    public int shieldHP;              // 护盾值（抵消伤害）
+    public int shieldHP;
 
     [Header("压力系统")]
-    public int stress;                // 当前压力值 0~100
-    public const int MaxStress = 100;
+    public int stress;
+    public const int MaxStressConst = 100;
+    public float stressResistRate;
+    public List<StressEvent> stressEventHistory = new List<StressEvent>();
+    public int positiveQuirkCount;
+    public BreakdownState breakdownState = BreakdownState.None;
+    public string currentBreakdownId;
+    public int breakdownDurationRemaining;
+    public int breakdownCooldown;
 
     [Header("经验等级")]
     public int level = 1;
@@ -33,12 +61,12 @@ public class UnitData : MonoBehaviour
     public int ExpToNextLevel => GetExpForLevel(level);
 
     [Header("血条引用")]
-    public SpriteRenderer hpBarFill;    // 旧版 SpriteRenderer（兼容）
-    public SpriteRenderer hpBarBg;      // 旧版 SpriteRenderer（兼容）
-    public HPBarFollower hpBarFollower;   // uGUI 血条
+    public SpriteRenderer hpBarFill;
+    public SpriteRenderer hpBarBg;
+    public HPBarFollower hpBarFollower;
 
     [Header("选中光圈")]
-    public GameObject selectCircle;       // 脚底的黄色光圈，选中时亮起
+    public GameObject selectCircle;
 
     [Header("技能")]
     public List<SkillData> skills = new List<SkillData>();
@@ -48,11 +76,6 @@ public class UnitData : MonoBehaviour
 
     void Start()
     {
-        // 初始血量已在 CreateUnit() 中设置
-        // 初始血条显示已在 CreateHPBar() 中通过 follower.UpdateHP() 完成
-        // 这里不再重复调用 UpdateHPUI()，避免时序问题
-
-        // 自动查找 SelectCircle（Inspector 没绑定的情况）
         if (selectCircle == null)
         {
             var found = transform.Find("SelectCircle");
@@ -64,41 +87,32 @@ public class UnitData : MonoBehaviour
 
     public void UpdateHPUI()
     {
-        // uGUI 血条（优先）
         if (hpBarFollower != null)
         {
             hpBarFollower.UpdateHP(currentHP, MaxHp);
             return;
         }
 
-        // 旧版 SpriteRenderer 血条（兼容）
         if (hpBarFill != null)
         {
             float hpPercent = Mathf.Clamp01((float)currentHP / MaxHp);
             hpBarFill.transform.localScale = new Vector3(1.2f * hpPercent, 0.2f, 1);
             return;
         }
-
-        // 两种血条都没有（初始化阶段或未绑定）
-        // 这是正常的：Start() 中 hpBarFollower 可能尚未被 BattleSetup 赋值
-        // DealDamage() 阶段如果还 null 则需检查绑定
     }
 
     // ========== 状态效果管理 ==========
 
-    /// <summary>是否有指定类型的状态效果</summary>
     public bool HasStatus(StatusType type)
     {
         return statusEffects.Exists(e => e.type == type && !e.expired);
     }
 
-    /// <summary>获取指定类型的第一个有效状态</summary>
     public StatusEffect GetStatus(StatusType type)
     {
         return statusEffects.Find(e => e.type == type && !e.expired);
     }
 
-    /// <summary>添加状态效果（同类叠加刷新持续时间）</summary>
     public void AddStatus(StatusEffect effect)
     {
         StatusEffect existing = statusEffects.Find(e => e.type == effect.type);
@@ -115,13 +129,11 @@ public class UnitData : MonoBehaviour
         BattleLog.Add($"[状态] {unitName} 获得 [{effect.type}]");
     }
 
-    /// <summary>移除指定类型的状态效果</summary>
     public void RemoveStatus(StatusType type)
     {
         statusEffects.RemoveAll(e => e.type == type);
     }
 
-    /// <summary>每回合结束调用，让所有状态减1回合</summary>
     public void TickStatusEffects()
     {
         for (int i = statusEffects.Count - 1; i >= 0; i--)
@@ -130,12 +142,35 @@ public class UnitData : MonoBehaviour
             if (statusEffects[i].expired)
             {
                 BattleLog.Add($"[状态] {unitName} 的 [{statusEffects[i].type}] 已消退");
+                OnStatusExpired(statusEffects[i]);
                 statusEffects.RemoveAt(i);
             }
         }
     }
 
-    /// <summary>处理流血伤害（回合开始时调用），返回是否存活</summary>
+    void OnStatusExpired(StatusEffect effect)
+    {
+        if (effect.type == StatusType.Berserk)
+        {
+            modifiers.RemoveAll(m => m.target == AttributeTarget.STR && m.source == "狂暴之力");
+            modifiers.RemoveAll(m => m.target == AttributeTarget.DEF && m.source == "狂暴之力");
+        }
+        else if (effect.type == StatusType.Enlightened)
+        {
+            modifiers.RemoveAll(m => m.target == AttributeTarget.INT && m.source == "智慧启迪");
+        }
+    }
+
+    /// <summary>获取职业基础HP</summary>
+    public int GetClassBaseHP()
+    {
+        if (unitName.Contains("狂战士")) return 50;
+        if (unitName.Contains("学者")) return 25;
+        if (unitName.Contains("战士")) return 40;
+        if (unitName.Contains("游侠")) return 30;
+        return 40;
+    }
+
     public bool ProcessBleed()
     {
         StatusEffect bleed = GetStatus(StatusType.Bleed);
@@ -144,21 +179,21 @@ public class UnitData : MonoBehaviour
             int bleedDmg = Mathf.RoundToInt(bleed.value);
             currentHP -= bleedDmg;
             BattleLog.Add($"[流血] {unitName} 受到 {bleedDmg} 点流血伤害 (HP: {currentHP}/{MaxHp})");
+            StressManager.AddStress(this, StressManager.config.onBleedTick, StressTag.Blood);
             UpdateHPUI();
             return currentHP > 0;
         }
         return true;
     }
 
-    /// <summary>高亮状态</summary>
+    // ========== 高亮 ==========
+
     public enum HighlightState { Normal, Highlighted, Dimmed }
 
-    /// <summary>设置高亮状态（暗黑地牢风格）</summary>
     public void SetHighlightState(HighlightState state)
     {
         Debug.Log($"[高亮] {unitName} → {state}, selectCircle={selectCircle != null}");
 
-        // 脚底光圈控制
         if (selectCircle != null)
         {
             var sr = selectCircle.GetComponent<SpriteRenderer>();
@@ -170,7 +205,6 @@ public class UnitData : MonoBehaviour
             }
         }
 
-        // 全身变暗（不可选目标视觉效果）
         var skeleton = GetComponentInChildren<Spine.Unity.SkeletonAnimation>(true);
         if (skeleton != null && skeleton.skeleton != null)
         {
@@ -179,7 +213,6 @@ public class UnitData : MonoBehaviour
         }
     }
 
-    /// <summary>旧接口兼容：true=Highlighted, false=Normal</summary>
     public void SetHighlight(bool isSelected)
     {
         SetHighlightState(isSelected ? HighlightState.Highlighted : HighlightState.Normal);
@@ -187,69 +220,99 @@ public class UnitData : MonoBehaviour
 
     // ========== 压力系统 ==========
 
-    /// <summary>增加压力值，返回是否已满</summary>
-    public bool AddStress(int amount)
+    public void AddStress(int amount)
     {
-        stress = Mathf.Min(stress + amount, MaxStress);
-        BattleLog.Add($"[压力] {unitName} 压力 +{amount} ({stress}/{MaxStress})");
-        return stress >= MaxStress;
+        stress = Mathf.Min(stress + amount, MaxStressConst);
+        BattleLog.Add($"[压力] {unitName} 压力 +{amount} ({stress}/{MaxStressConst})");
     }
 
-    /// <summary>减少压力值</summary>
     public void ReduceStress(int amount)
     {
         stress = Mathf.Max(stress - amount, 0);
-        BattleLog.Add($"[压力] {unitName} 压力 -{amount} ({stress}/{MaxStress})");
+        BattleLog.Add($"[压力] {unitName} 压力 -{amount} ({stress}/{MaxStressConst})");
     }
 
-    /// <summary>检查压力值状态</summary>
     public string GetStressBar()
     {
-        int barLen = Mathf.RoundToInt((float)stress / MaxStress * 15);
-        string bar = new string('█', barLen) + new string('░', 15 - barLen);
+        int barLen = Mathf.RoundToInt((float)stress / MaxStressConst * 15);
+        string bar = new string('\u2588', barLen) + new string('\u2591', 15 - barLen);
         string color = stress < 50 ? "#88ff88" : stress < 80 ? "#ffaa00" : "#ff4444";
-        return $"<color={color}>{bar}</color> {stress}/{MaxStress}";
+        return $"<color={color}>{bar}</color> {stress}/{MaxStressConst}";
     }
 
-    /// <summary>计算受伤倍率（标记 = 1.0 + 标记值）</summary>
+    public bool IsBreakdownActive()
+    {
+        return breakdownState != BreakdownState.None;
+    }
+
+    public void ClearBreakdown()
+    {
+        breakdownState = BreakdownState.None;
+        currentBreakdownId = null;
+        breakdownDurationRemaining = 0;
+    }
+
+    public float GetDamageModifier()
+    {
+        if (breakdownState == BreakdownState.None) return 1f;
+        BreakdownEntry entry = BreakdownDatabase.Get(currentBreakdownId);
+        if (entry != null && entry.statModPercent != 0)
+            return 1f + entry.statModPercent;
+        return 1f;
+    }
+
+    public int GetEffectiveSTR()
+    {
+        float mod = StressManager.GetStatModifier(this);
+        return Mathf.RoundToInt(STR_Effective * mod);
+    }
+
+    public int GetEffectiveDEF()
+    {
+        float mod = StressManager.GetStatModifier(this);
+        return Mathf.RoundToInt(DEF_Effective * mod);
+    }
+
+    public int GetEffectiveINT()
+    {
+        float mod = StressManager.GetStatModifier(this);
+        return Mathf.RoundToInt(INT_Effective * mod);
+    }
+
     public float GetIncomingDamageMultiplier()
     {
         float multiplier = 1f;
         StatusEffect mark = GetStatus(StatusType.Mark);
         if (mark != null)
-            multiplier += mark.value; // 如 0.2 = +20%
+            multiplier += mark.value;
         return multiplier;
     }
 
-    /// <summary>
-    /// 计算技能原始伤害（技能 + 武器 + 属性补正，不含力量系数和防御减免）
-    /// </summary>
     public int CalculateDamage(SkillData skill)
     {
-        float raw = skill.baseDamage + weaponAttack + STR * skill.strScaling + AGI * skill.agiScaling;
+        float raw = skill.baseDamage + weaponAttack + STR_Effective * skill.strScaling + AGI * skill.agiScaling;
         return Mathf.Max(1, Mathf.RoundToInt(raw));
     }
 
-    /// <summary>计算力量系数：1 + (STR - 5) * 0.05</summary>
     public float GetStrengthCoefficient()
     {
-        return 1f + (STR - 5) * 0.05f;
+        float baseCoeff = 1f + (STR_Effective - 5) * 0.05f;
+        float breakdownMod = GetDamageModifier();
+        return baseCoeff * breakdownMod;
     }
 
     // ========== 经验升级 ==========
 
-    /// <summary>获取升到指定等级所需的经验值（MVP 线性：100/200/400/800/1600）</summary>
     public static int GetExpForLevel(int lvl)
     {
         if (lvl <= 0) return 100;
-        if (lvl > 5) return int.MaxValue; // 满级
+        if (lvl > 5) return int.MaxValue;
         return 100 * (int)Mathf.Pow(2, lvl - 1);
     }
 
-    /// <summary>获得经验值，触发升级</summary>
     public void GainExp(int amount)
     {
-        if (level >= 5) return; // 满级
+        if (level >= 5) return;
         currentExp += amount;
         BattleLog.Add($"[经验] {unitName} 获得 {amount} 经验 ({currentExp}/{ExpToNextLevel})");
 
@@ -258,14 +321,16 @@ public class UnitData : MonoBehaviour
             currentExp -= ExpToNextLevel;
             level++;
 
-            // 自动加点：+1 VIT，+1 主属性
-            VIT++;
-            if (STR > AGI && STR > INT) STR++;
-            else if (AGI > STR && AGI > INT) AGI++;
-            else if (isPlayer && skills.Exists(s => s.agiScaling > 0.5f)) AGI++;
-            else STR++;
+            primaryAttributes.VIT++;
+            if (primaryAttributes.STR > primaryAttributes.AGI && primaryAttributes.STR > primaryAttributes.INT)
+                primaryAttributes.STR++;
+            else if (primaryAttributes.AGI > primaryAttributes.STR && primaryAttributes.AGI > primaryAttributes.INT)
+                primaryAttributes.AGI++;
+            else if (isPlayer && skills.Exists(s => s.agiScaling > 0.5f))
+                primaryAttributes.AGI++;
+            else
+                primaryAttributes.STR++;
 
-            // 满血恢复
             currentHP = MaxHp;
             UpdateHPUI();
 

@@ -93,7 +93,7 @@ public class UIUnitInfoController : MonoBehaviour
 
         lines.Add("");
         lines.Add($"<b>属性</b>");
-        lines.Add($"VIT:{currentDisplayed.VIT}  STR:{currentDisplayed.STR}  DEF:{currentDisplayed.DEF}");
+        lines.Add($"VIT:{currentDisplayed.VIT}  STR:{currentDisplayed.STR}  DEF:{currentDisplayed.DEF_Effective}");
         lines.Add($"AGI:{currentDisplayed.AGI}  INT:{currentDisplayed.INT}");
         lines.Add($"武器攻击: {currentDisplayed.weaponAttack}");
 
