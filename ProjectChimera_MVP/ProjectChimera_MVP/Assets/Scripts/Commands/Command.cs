@@ -286,8 +286,9 @@ public class BloodthirstyStrikeCommand : Command
         UnitData attacker = ctx.attacker;
         UnitData target = ctx.selectedTarget;
 
-        int rawDmg = baseDamage + attacker.weaponAttack + attacker.GetEffectiveSTR() * strScaling;
+        float raw = baseDamage + attacker.weaponAttack + attacker.GetEffectiveSTR() * strScaling;
         float strCoeff = 1f + (attacker.GetEffectiveSTR() - 5) * 0.05f;
+        int rawDmg = Mathf.RoundToInt(raw);
         int finalDmg = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - target.GetEffectiveDEF()));
         float markMult = target.GetIncomingDamageMultiplier();
         finalDmg = Mathf.Max(1, Mathf.RoundToInt(finalDmg * markMult));
