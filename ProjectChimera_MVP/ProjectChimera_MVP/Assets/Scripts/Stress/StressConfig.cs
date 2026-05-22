@@ -5,15 +5,13 @@ using UnityEngine;
 [System.Serializable]
 public class StressConfig
 {
-    public int maxStress = 100;
+    public int maxStress = 200;
     public int virtueBreakMin = 100;
-    public int virtueBreakMax = 150;
     public int onTakeDamage = 2;
     public int onCriticalHit = 5;
     public int onAllyDeath = 20;
     public int onAllyDeathNamed = 30;
-    public int onMissAttack = 2;
-    public int onKillEnemy = -5;
+    public int onKillEnemy = -10;
     public int onCriticalDeal = -5;
     public int onAllyCritical = -3;
     public int onBleedTick = 1;
@@ -23,11 +21,16 @@ public class StressConfig
     public float resistDiminishThreshold = 0.6f;
     [Range(0f, 1f)] public float virtueChance = 0.25f;
     public float virtueChancePerPositiveQuirk = 0.05f;
-    public float virtueChancePerStressResist = 0.1f;
+    public float virtueChancePerStressResist = 0.01f;
     public int virtueDurationMin = 2;
     public int virtueDurationMax = 4;
     public int afflictionDurationMin = 3;
     public int afflictionDurationMax = 5;
+    public int afflictionResetValue = 100;
+    public int heartAttackThreshold = 200;
+    [Range(0f, 1f)] public float heartAttackResistChance = 0.2f;
+    [Range(0f, 1f)] public float heartAttackDamagePercent = 0.5f;
+    public bool virtueStressImmunity = true;
     public int campReduceBase = 15;
     public int townReducePerDay = 5;
     public int tavernReducePerVisit = 15;

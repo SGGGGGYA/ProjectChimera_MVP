@@ -531,6 +531,9 @@ public class BattleManager : MonoBehaviour
             StressManager.AddStress(target, StressManager.config.onTakeDamage, StressTag.Combat);
         }
 
+        if (target.currentHP > 0)
+            StressManager.CheckResolve(target, this);
+
         if (damagePopupPrefab != null)
         {
             Vector3 spawnPos = target.transform.position + Vector3.up * 1.5f;
@@ -553,7 +556,10 @@ public class BattleManager : MonoBehaviour
             foreach (var ally in allies)
             {
                 if (ally.currentHP > 0)
+                {
                     StressManager.AddStress(ally, StressManager.config.onAllyDeath, StressTag.AllyDown);
+                    StressManager.CheckResolve(ally, this);
+                }
             }
 
             if (enemyUnits.Contains(target))

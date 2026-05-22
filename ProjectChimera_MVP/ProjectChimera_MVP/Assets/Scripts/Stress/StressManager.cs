@@ -27,6 +27,11 @@ public static class StressManager
     public static void AddStress(UnitData unit, int rawAmount, StressTag tag)
     {
         if (unit == null || unit.currentHP <= 0) return;
+        if (unit.IsStressImmune())
+        {
+            BattleLog.Add($"[压力免疫] {unit.unitName} 处于美德状态，免疫压力");
+            return;
+        }
         int actual = CalcActualGain(rawAmount, unit.stressResistRate);
         unit.stress = Mathf.Min(unit.stress + actual, config.maxStress);
 
@@ -44,6 +49,46 @@ public static class StressManager
         BattleLog.Add($"[压力] {unit.unitName} 压力 -{amount} ({unit.stress}/{config.maxStress})");
     }
 
+    public static void CheckResolve(UnitData unit, BattleManager bm)
+    {
+        if (unit == null || unit.currentHP <= 0) return;
+
+        if (unit.stress >= config.heartAttackThreshold)
+        {
+            CheckHeartAttack(unit, bm);
+        }
+        else if (unit.stress >= config.virtueBreakMin && unit.breakdownState == BreakdownState.None)
+        {
+            TryResolveBreakdown(unit, bm);
+        }
+    }
+
+    static void CheckHeartAttack(UnitData unit, BattleManager bm)
+    {
+        if (unit == null || bm == null) return;
+
+        float roll = Random.value;
+        if (roll < config.heartAttackResistChance)
+        {
+            unit.stress = config.afflictionResetValue;
+            unit.breakdownState = BreakdownState.None;
+            BattleLog.Add($"<color=orange>【心脏衰竭抵抗】{unit.unitName} 凭借意志抵抗了心脏衰竭，压力回落到 {config.afflictionResetValue}！</color>");
+        }
+        else
+        {
+            int damage = Mathf.RoundToInt(unit.MaxHp * config.heartAttackDamagePercent);
+            unit.currentHP -= damage;
+            unit.UpdateHPUI();
+            BattleLog.Add($"<color=red>【心脏衰竭】{unit.unitName} 心脏不堪重负，受到 {damage} 点致命伤害！</color>");
+            if (unit.currentHP <= 0)
+            {
+                unit.currentHP = 0;
+                BattleLog.Add($"{unit.unitName} 死于心脏衰竭！");
+            }
+            unit.stress = Mathf.Max(0, config.afflictionResetValue - Random.Range(10, 31));
+        }
+    }
+
     public static void TryResolveBreakdown(UnitData unit, BattleManager bm)
     {
         if (unit == null || unit.breakdownCooldown > 0) return;
@@ -57,7 +102,7 @@ public static class StressManager
 
         float virtueProb = config.virtueChance;
         virtueProb += unit.positiveQuirkCount * config.virtueChancePerPositiveQuirk;
-        virtueProb += (unit.stressResistRate * 100f / 10f) * config.virtueChancePerStressResist;
+        virtueProb += (unit.stressResistRate * 100f) * config.virtueChancePerStressResist;
 
         bool isVirtue = Random.value < virtueProb;
         BreakdownEntry entry = SelectBreakdown(isVirtue, contextTags);
@@ -69,6 +114,9 @@ public static class StressManager
         int durMax = isVirtue ? config.virtueDurationMax : config.afflictionDurationMax;
         unit.breakdownDurationRemaining = Random.Range(durMin, durMax + 1);
         unit.breakdownCooldown = config.breakdownCooldown;
+
+        if (!isVirtue)
+            unit.stress = config.afflictionResetValue;
 
         BattleLog.Add($"<color={(isVirtue ? "#44ff44" : "#ff4444")}>【{(isVirtue ? "美德" : "折磨")}】{unit.unitName} 触发 [{entry.displayName}]！{entry.description}</color>");
 
@@ -173,6 +221,7 @@ public static class StressManager
     public static float GetStatModifier(UnitData unit)
     {
         if (unit.breakdownState == BreakdownState.None) return 1f;
+        if (unit.breakdownState == BreakdownState.HeartAttack) return 0.5f;
         var entry = BreakdownDatabase.Get(unit.currentBreakdownId);
         if (entry != null && entry.statModPercent != 0)
             return 1f + entry.statModPercent;
@@ -182,15 +231,16 @@ public static class StressManager
     public static bool ShouldSkipTurn(UnitData unit)
     {
         if (unit.breakdownState == BreakdownState.None) return false;
+        if (unit.breakdownState == BreakdownState.HeartAttack) return false;
         var entry = BreakdownDatabase.Get(unit.currentBreakdownId);
         return entry != null && entry.skipTurn;
     }
 
     public static Color GetStressColor(int stress)
     {
-        if (stress < 25) return Color.green;
-        if (stress < 50) return Color.yellow;
-        if (stress < 75) return new Color(1f, 0.6f, 0f);
+        if (stress < 50) return Color.green;
+        if (stress < 100) return Color.yellow;
+        if (stress < 150) return new Color(1f, 0.6f, 0f);
         return Color.red;
     }
 
@@ -200,6 +250,8 @@ public static class StressManager
         if (stress < 50) return "正常";
         if (stress < 75) return "警惕";
         if (stress < 100) return "危险";
-        return "濒临崩溃";
+        if (stress < 150) return "濒临崩溃";
+        if (stress < 200) return "极限";
+        return "心脏衰竭";
     }
 }

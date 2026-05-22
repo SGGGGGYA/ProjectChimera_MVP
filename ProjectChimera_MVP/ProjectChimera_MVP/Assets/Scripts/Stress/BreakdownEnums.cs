@@ -6,7 +6,16 @@ public enum BreakdownState
 {
     None,
     Virtue,
-    Affliction
+    Affliction,
+    HeartAttack
+}
+
+public enum MentalState
+{
+    Normal,
+    Afflicted,
+    Virtuous,
+    HeartAttack
 }
 
 public enum BreakdownEffectType

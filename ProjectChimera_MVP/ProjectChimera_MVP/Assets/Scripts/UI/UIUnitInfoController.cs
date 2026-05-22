@@ -92,10 +92,14 @@ public class UIUnitInfoController : MonoBehaviour
         lines.Add($"  {currentDisplayed.GetStressBar()}");
 
         lines.Add("");
+        string className = currentDisplayed.classData != null ? currentDisplayed.classData.unitName : "-";
         lines.Add($"<b>属性</b>");
-        lines.Add($"VIT:{currentDisplayed.VIT}  STR:{currentDisplayed.STR}  DEF:{currentDisplayed.DEF_Effective}");
-        lines.Add($"AGI:{currentDisplayed.AGI}  INT:{currentDisplayed.INT}");
-        lines.Add($"武器攻击: {currentDisplayed.weaponAttack}");
+        lines.Add($"VIT:{currentDisplayed.VIT}  STR:{currentDisplayed.STR_Effective}  DEF:{currentDisplayed.DEF_Effective}");
+        lines.Add($"AGI:{currentDisplayed.AGI}  INT:{currentDisplayed.INT_Effective}");
+        string weaponName = currentDisplayed.equippedWeapon != null ? currentDisplayed.equippedWeapon.equipmentName : "无";
+        string armorName = currentDisplayed.equippedArmor != null ? currentDisplayed.equippedArmor.equipmentName : "无";
+        lines.Add($"武器: {weaponName} ({currentDisplayed.weaponAttack})  防具: {armorName}");
+        lines.Add($"特质: {currentDisplayed.quirks.Count}个");
 
         lines.Add("");
         if (currentDisplayed.level < 5)

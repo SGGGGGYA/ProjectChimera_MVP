@@ -229,7 +229,10 @@ public class ConsumeResourceCommand : Command
         if (resourceType == ResourceType.Stress)
         {
             if (amount >= 0)
+            {
                 StressManager.AddStress(ctx.selectedTarget, amount, StressTag.Combat);
+                StressManager.CheckResolve(ctx.selectedTarget, ctx.battleManager);
+            }
             else
                 StressManager.ReduceStress(ctx.selectedTarget, -amount);
         }
@@ -373,7 +376,10 @@ public class MindShockCommand : Command
         if (target.currentHP > 0 && stressAmount != 0)
         {
             if (stressAmount > 0)
+            {
                 StressManager.AddStress(target, stressAmount, StressTag.Combat);
+                StressManager.CheckResolve(target, ctx.battleManager);
+            }
             else
                 StressManager.ReduceStress(target, -stressAmount);
         }
@@ -406,7 +412,10 @@ public class SelfInflictCommand : Command
         else if (inflictType == SelfInflictType.Stress)
         {
             if (amount >= 0)
+            {
                 StressManager.AddStress(ctx.attacker, amount, StressTag.SelfHarm);
+                StressManager.CheckResolve(ctx.attacker, ctx.battleManager);
+            }
             else
                 StressManager.ReduceStress(ctx.attacker, -amount);
         }

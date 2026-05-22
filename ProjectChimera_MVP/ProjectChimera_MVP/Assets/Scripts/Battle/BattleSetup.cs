@@ -306,6 +306,10 @@ public class BattleSetup : MonoBehaviour
 
         unit.unitName = data.unitName;
         unit.isPlayer = data.isPlayer;
+
+        var classDef = GameManager.Instance?.GetClassDefinition(data.unitName);
+        unit.classData = classDef;
+
         unit.VIT = data.VIT;
         unit.STR = data.STR;
         unit.baseDefense = data.DEF;
@@ -317,7 +321,7 @@ public class BattleSetup : MonoBehaviour
         unit.currentHP = unit.MaxHp;
         unit.stress = data.stress;
         unit.stressResistRate = Mathf.Min(StressManager.config.baseResist + data.level * StressManager.config.resistPerLevel, StressManager.config.maxResist);
-        unit.skills = GameManager.GetDefaultSkills(data.unitName);
+        unit.skills = classDef != null ? new List<SkillData>(classDef.skillPool) : new List<SkillData>();
 
         // UnitClickDetector 已在预制体上，无需 AddComponent
 

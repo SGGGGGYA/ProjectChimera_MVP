@@ -7,6 +7,7 @@ public class UnitData : MonoBehaviour
 {
     [Header("基本信息")]
     public string unitName;
+    public ClassDefinition classData;
 
     [Header("三层属性")]
     public PrimaryAttributes primaryAttributes = new PrimaryAttributes(10, 10, 5, 3);
@@ -17,25 +18,161 @@ public class UnitData : MonoBehaviour
     public int STR { get => primaryAttributes.STR; set => primaryAttributes.STR = value; }
     public int AGI { get => primaryAttributes.AGI; set => primaryAttributes.AGI = value; }
     public int INT { get => primaryAttributes.INT; set => primaryAttributes.INT = value; }
-    public int STR_Effective => primaryAttributes.STR + GetModifierSum(AttributeTarget.STR);
-    public int INT_Effective => primaryAttributes.INT + GetModifierSum(AttributeTarget.INT);
-    public int DEF_Effective => baseDefense + GetModifierSum(AttributeTarget.DEF);
-    public int MaxHp => primaryAttributes.VIT * 5 + GetClassBaseHP() + GetModifierSum(AttributeTarget.MaxHP);
-    public int SPD => primaryAttributes.AGI * 2 + GetModifierSum(AttributeTarget.SPD);
-    public int ACC => 80 + primaryAttributes.AGI * 2 + GetModifierSum(AttributeTarget.ACC);
-    public int DOD => Mathf.RoundToInt(primaryAttributes.AGI * 1.5f) + GetModifierSum(AttributeTarget.DOD);
 
-    int GetModifierSum(AttributeTarget target)
+    [Header("装备")]
+    public int weaponAttack;
+    public Weapon equippedWeapon;
+    public Armor equippedArmor;
+
+    [Header("特质")]
+    public List<Quirk> quirks = new List<Quirk>();
+
+    // ========== GetFinalStat 管线 ==========
+
+    static readonly Dictionary<StatType, AttributeTarget> statToTarget = new Dictionary<StatType, AttributeTarget>
+    {
+        { StatType.MaxHP, AttributeTarget.MaxHP },
+        { StatType.SPD, AttributeTarget.SPD },
+        { StatType.ACC, AttributeTarget.ACC },
+        { StatType.DOD, AttributeTarget.DOD },
+        { StatType.DEF, AttributeTarget.DEF },
+        { StatType.STR, AttributeTarget.STR },
+        { StatType.INT, AttributeTarget.INT },
+    };
+
+    static AttributeTarget ToAttributeTarget(StatType stat)
+    {
+        statToTarget.TryGetValue(stat, out var t);
+        return t;
+    }
+
+    int GetBuffFlat(StatType stat)
     {
         int sum = 0;
         foreach (var mod in modifiers)
-            if (mod.type == ModifierType.Add && mod.target == target)
+            if (mod.type == ModifierType.Add && mod.target == ToAttributeTarget(stat))
                 sum += Mathf.RoundToInt(mod.value);
         return sum;
     }
 
-    [Header("装备")]
-    public int weaponAttack;
+    float GetBuffPercent(StatType stat)
+    {
+        float sum = 0;
+        foreach (var mod in modifiers)
+            if (mod.type == ModifierType.Mul && mod.target == ToAttributeTarget(stat))
+                sum += mod.value;
+        return sum;
+    }
+
+    int GetBaseStat(StatType stat)
+    {
+        int classBase = classData != null ? GetClassBaseByType(stat) : 0;
+        return classBase + GetPrimaryByType(stat);
+    }
+
+    int GetClassBaseByType(StatType stat)
+    {
+        if (classData == null) return 0;
+        switch (stat)
+        {
+            case StatType.VIT: return classData.baseVIT;
+            case StatType.STR: return classData.baseSTR;
+            case StatType.AGI: return classData.baseAGI;
+            case StatType.INT: return classData.baseINT;
+            case StatType.DEF: return classData.baseDEF;
+        }
+        return 0;
+    }
+
+    int GetPrimaryByType(StatType stat)
+    {
+        switch (stat)
+        {
+            case StatType.VIT: return primaryAttributes.VIT;
+            case StatType.STR: return primaryAttributes.STR;
+            case StatType.AGI: return primaryAttributes.AGI;
+            case StatType.INT: return primaryAttributes.INT;
+        }
+        return 0;
+    }
+
+    int GetEquipFlat(StatType stat)
+    {
+        int sum = 0;
+        if (equippedWeapon != null) sum += equippedWeapon.GetFlatMod(stat);
+        if (equippedArmor != null) sum += equippedArmor.GetFlatMod(stat);
+        return sum;
+    }
+
+    float GetEquipPercent(StatType stat)
+    {
+        float sum = 0;
+        if (equippedWeapon != null) sum += equippedWeapon.GetPercentMod(stat);
+        if (equippedArmor != null) sum += equippedArmor.GetPercentMod(stat);
+        return sum;
+    }
+
+    int GetQuirkFlat(StatType stat)
+    {
+        int sum = 0;
+        foreach (var q in quirks)
+            sum += q.GetFlatMod(stat);
+        return sum;
+    }
+
+    float GetQuirkPercent(StatType stat)
+    {
+        float sum = 0;
+        foreach (var q in quirks)
+            sum += q.GetPercentMod(stat);
+        return sum;
+    }
+
+    public int GetFinalStat(StatType stat)
+    {
+        if (stat == StatType.MaxHP)
+        {
+            int baseHp = primaryAttributes.VIT * 5 + (classData != null ? classData.baseHp : GetClassBaseHP());
+            int equipFlat = GetEquipFlat(stat);
+            int quirkFlat = GetQuirkFlat(stat);
+            int buffFlat = GetBuffFlat(stat);
+            int additive = baseHp + equipFlat + quirkFlat + buffFlat;
+
+            float equipPct = GetEquipPercent(stat);
+            float quirkPct = GetQuirkPercent(stat);
+            float buffPct = GetBuffPercent(stat);
+            float multiplier = 1f + equipPct + quirkPct + buffPct;
+
+            return Mathf.RoundToInt(additive * Mathf.Max(0, multiplier));
+        }
+
+        int baseVal = GetBaseStat(stat);
+        int equipFlat2 = GetEquipFlat(stat);
+        int quirkFlat2 = GetQuirkFlat(stat);
+        int buffFlat2 = GetBuffFlat(stat);
+        int additive2 = baseVal + equipFlat2 + quirkFlat2 + buffFlat2;
+
+        float equipPct2 = GetEquipPercent(stat);
+        float quirkPct2 = GetQuirkPercent(stat);
+        float buffPct2 = GetBuffPercent(stat);
+        float multiplier2 = 1f + equipPct2 + quirkPct2 + buffPct2;
+
+        float stressMod = 1f;
+        if (stat == StatType.STR || stat == StatType.INT || stat == StatType.DEF)
+            stressMod = StressManager.GetStatModifier(this);
+
+        return Mathf.RoundToInt(additive2 * Mathf.Max(0, multiplier2) * stressMod);
+    }
+
+    // ========== 向后兼容的有效属性 ==========
+
+    public int STR_Effective => GetFinalStat(StatType.STR);
+    public int INT_Effective => GetFinalStat(StatType.INT);
+    public int DEF_Effective => GetFinalStat(StatType.DEF);
+    public int MaxHp => GetFinalStat(StatType.MaxHP);
+    public int SPD => GetFinalStat(StatType.SPD);
+    public int ACC => GetFinalStat(StatType.ACC);
+    public int DOD => GetFinalStat(StatType.DOD);
 
     [Header("身份标记")]
     public bool isPlayer;
@@ -46,7 +183,7 @@ public class UnitData : MonoBehaviour
 
     [Header("压力系统")]
     public int stress;
-    public const int MaxStressConst = 100;
+    public const int MaxStressConst = 200;
     public float stressResistRate;
     public List<StressEvent> stressEventHistory = new List<StressEvent>();
     public int positiveQuirkCount;
@@ -81,7 +218,6 @@ public class UnitData : MonoBehaviour
             var found = transform.Find("SelectCircle");
             if (found != null)
                 selectCircle = found.gameObject;
-            Debug.Log($"[UnitData] {unitName} selectCircle 自动查找: {selectCircle != null}");
         }
     }
 
@@ -161,9 +297,10 @@ public class UnitData : MonoBehaviour
         }
     }
 
-    /// <summary>获取职业基础HP</summary>
+    /// <summary>获取职业基础HP（不含VIT加成）</summary>
     public int GetClassBaseHP()
     {
+        if (classData != null) return classData.baseHp;
         if (unitName.Contains("狂战士")) return 50;
         if (unitName.Contains("学者")) return 25;
         if (unitName.Contains("战士")) return 40;
@@ -192,17 +329,11 @@ public class UnitData : MonoBehaviour
 
     public void SetHighlightState(HighlightState state)
     {
-        Debug.Log($"[高亮] {unitName} → {state}, selectCircle={selectCircle != null}");
-
         if (selectCircle != null)
         {
             var sr = selectCircle.GetComponent<SpriteRenderer>();
-            Debug.Log($"[高亮] {unitName} selectCircle SR={sr != null}");
             if (sr != null)
-            {
                 sr.enabled = (state == HighlightState.Highlighted);
-                Debug.Log($"[高亮] {unitName} sr.enabled → {sr.enabled}");
-            }
         }
 
         var skeleton = GetComponentInChildren<Spine.Unity.SkeletonAnimation>(true);
@@ -222,8 +353,8 @@ public class UnitData : MonoBehaviour
 
     public void AddStress(int amount)
     {
-        stress = Mathf.Min(stress + amount, MaxStressConst);
-        BattleLog.Add($"[压力] {unitName} 压力 +{amount} ({stress}/{MaxStressConst})");
+        stress = Mathf.Min(stress + amount, StressManager.config.maxStress);
+        BattleLog.Add($"[压力] {unitName} 压力 +{amount} ({stress}/{StressManager.config.maxStress})");
     }
 
     public void ReduceStress(int amount)
@@ -236,8 +367,30 @@ public class UnitData : MonoBehaviour
     {
         int barLen = Mathf.RoundToInt((float)stress / MaxStressConst * 15);
         string bar = new string('\u2588', barLen) + new string('\u2591', 15 - barLen);
-        string color = stress < 50 ? "#88ff88" : stress < 80 ? "#ffaa00" : "#ff4444";
+        string color = stress < 50 ? "#88ff88" : stress < 100 ? "#ffaa00" : "#ff4444";
         return $"<color={color}>{bar}</color> {stress}/{MaxStressConst}";
+    }
+
+    public Color GetStressColor()
+    {
+        if (stress < 50) return Color.green;
+        if (stress < 100) return Color.yellow;
+        if (stress < 150) return new Color(1f, 0.55f, 0f);
+        return Color.red;
+    }
+
+    public MentalState GetMentalState()
+    {
+        if (currentHP <= 0) return MentalState.HeartAttack;
+        if (breakdownState == BreakdownState.HeartAttack) return MentalState.HeartAttack;
+        if (breakdownState == BreakdownState.Affliction) return MentalState.Afflicted;
+        if (breakdownState == BreakdownState.Virtue) return MentalState.Virtuous;
+        return MentalState.Normal;
+    }
+
+    public bool IsStressImmune()
+    {
+        return breakdownState == BreakdownState.Virtue && StressManager.config.virtueStressImmunity;
     }
 
     public bool IsBreakdownActive()
@@ -261,23 +414,9 @@ public class UnitData : MonoBehaviour
         return 1f;
     }
 
-    public int GetEffectiveSTR()
-    {
-        float mod = StressManager.GetStatModifier(this);
-        return Mathf.RoundToInt(STR_Effective * mod);
-    }
-
-    public int GetEffectiveDEF()
-    {
-        float mod = StressManager.GetStatModifier(this);
-        return Mathf.RoundToInt(DEF_Effective * mod);
-    }
-
-    public int GetEffectiveINT()
-    {
-        float mod = StressManager.GetStatModifier(this);
-        return Mathf.RoundToInt(INT_Effective * mod);
-    }
+    public int GetEffectiveSTR() => GetFinalStat(StatType.STR);
+    public int GetEffectiveDEF() => GetFinalStat(StatType.DEF);
+    public int GetEffectiveINT() => GetFinalStat(StatType.INT);
 
     public float GetIncomingDamageMultiplier()
     {
@@ -290,13 +429,13 @@ public class UnitData : MonoBehaviour
 
     public int CalculateDamage(SkillData skill)
     {
-        float raw = skill.baseDamage + weaponAttack + STR_Effective * skill.strScaling + AGI * skill.agiScaling;
+        float raw = skill.baseDamage + weaponAttack + GetFinalStat(StatType.STR) * skill.strScaling + AGI * skill.agiScaling;
         return Mathf.Max(1, Mathf.RoundToInt(raw));
     }
 
     public float GetStrengthCoefficient()
     {
-        float baseCoeff = 1f + (STR_Effective - 5) * 0.05f;
+        float baseCoeff = 1f + (GetEffectiveSTR() - 5) * 0.05f;
         float breakdownMod = GetDamageModifier();
         return baseCoeff * breakdownMod;
     }
@@ -333,7 +472,6 @@ public class UnitData : MonoBehaviour
 
             currentHP = MaxHp;
             UpdateHPUI();
-
             BattleLog.Add($"🎉 {unitName} 升级到 {level} 级！HP 全恢复");
         }
     }

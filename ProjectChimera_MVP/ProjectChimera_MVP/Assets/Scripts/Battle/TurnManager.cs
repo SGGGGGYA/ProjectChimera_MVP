@@ -85,33 +85,10 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
-        // 检查压力崩溃
-        if (currentUnit.stress >= UnitData.MaxStressConst)
-        {
-            StressManager.TryResolveBreakdown(currentUnit, bm);
-            currentUnit.stress = 0;
-
-            if (StressManager.ShouldSkipTurn(currentUnit))
-            {
-                BattleLog.Add($"<color=red>{currentUnit.unitName} 因崩溃状态跳过回合！</color>");
-                currentUnit.TickStatusEffects();
-                currentTurnIndex++;
-                StartNextTurn();
-                return;
-            }
-        }
-
-        // 低压力安心回压
-        if (currentUnit.stress < StressManager.config.lowStressThreshold && currentUnit.stress > 0)
-        {
-            currentUnit.stress = Mathf.Max(0, currentUnit.stress + StressManager.config.lowStressRecovery);
-        }
-
-        // 处理流血（回合开始时扣血）
+        // 处理流血（回合开始时扣血，可能触发压力事件）
         bool alive = currentUnit.ProcessBleed();
         if (!alive)
         {
-            // 流血致死
             BattleLog.Add($"{currentUnit.unitName} 因流血而死亡！");
             BattleManager bmCheck = FindObjectOfType<BattleManager>();
             if (bmCheck != null)
@@ -120,8 +97,6 @@ public class TurnManager : MonoBehaviour
                 bool allPlayerDead = bmCheck.GetFirstAlive(bmCheck.playerUnits) == null;
                 if (allEnemyDead || allPlayerDead)
                 {
-                    // 让 BattleManager 处理战斗结束
-                    // 这里只需要跳过后续行动
                     currentTurnIndex++;
                     StartNextTurn();
                     return;
@@ -130,6 +105,42 @@ public class TurnManager : MonoBehaviour
             currentTurnIndex++;
             StartNextTurn();
             return;
+        }
+
+        // 压力阈值检析（心脏衰竭优先，然后崩溃/美德判定）
+        StressManager.CheckResolve(currentUnit, bm);
+
+        if (currentUnit.currentHP <= 0)
+        {
+            BattleLog.Add($"{currentUnit.unitName} 在压力判定后死亡！");
+            bool allEnemyDead = bm.GetFirstAlive(bm.enemyUnits) == null;
+            bool allPlayerDead = bm.GetFirstAlive(bm.playerUnits) == null;
+            if (allEnemyDead || allPlayerDead)
+            {
+                currentTurnIndex++;
+                StartNextTurn();
+                return;
+            }
+            currentTurnIndex++;
+            StartNextTurn();
+            return;
+        }
+
+        if (currentUnit.breakdownState != BreakdownState.None && StressManager.ShouldSkipTurn(currentUnit))
+        {
+            BattleLog.Add($"<color=red>{currentUnit.unitName} 因崩溃状态跳过回合！</color>");
+            currentUnit.TickStatusEffects();
+            StressManager.TickBreakdown(currentUnit);
+            currentTurnIndex++;
+            StartNextTurn();
+            return;
+        }
+
+        // 低压力安心回压（仅限正常状态）
+        if (currentUnit.breakdownState == BreakdownState.None &&
+            currentUnit.stress < StressManager.config.lowStressThreshold && currentUnit.stress > 0)
+        {
+            currentUnit.stress = Mathf.Max(0, currentUnit.stress + StressManager.config.lowStressRecovery);
         }
 
         isPlayerTurn = currentUnit.isPlayer;
@@ -159,6 +170,26 @@ public class TurnManager : MonoBehaviour
         BattleManager bm = FindObjectOfType<BattleManager>();
         if (bm != null)
         {
+            MentalState mentalState = currentUnit.GetMentalState();
+
+            // Afflicted: 50%概率随机攻击本方或对方
+            if (mentalState == MentalState.Afflicted && Random.value < 0.5f)
+            {
+                var allTargets = new List<UnitData>();
+                allTargets.AddRange(bm.playerUnits.FindAll(u => u.currentHP > 0));
+                allTargets.AddRange(bm.enemyUnits.FindAll(u => u.currentHP > 0 && u != currentUnit));
+                if (allTargets.Count > 0)
+                {
+                    UnitData randomTarget = allTargets[Random.Range(0, allTargets.Count)];
+                    int dmg = Mathf.Max(1, currentUnit.GetEffectiveSTR() + currentUnit.weaponAttack - randomTarget.GetEffectiveDEF());
+                    BattleLog.Add($"<color=red>[崩溃 AI] {currentUnit.unitName} 失控攻击了 {randomTarget.unitName}！</color>");
+                    bm.DealDamage(currentUnit, randomTarget, dmg);
+                    yield return new WaitForSeconds(0.5f);
+                    EndTurn();
+                    yield break;
+                }
+            }
+
             // 检查嘲讽
             UnitData target = null;
             StatusEffect taunt = currentUnit.GetStatus(StatusType.Taunt);
@@ -169,7 +200,6 @@ public class TurnManager : MonoBehaviour
                     BattleLog.Add($"[嘲讽] {currentUnit.unitName} 被嘲讽，强制攻击 {target.unitName}");
             }
 
-            // 根据单位名称执行不同 AI
             UnitData chosenTarget = null;
             SkillData chosenSkill = null;
 
@@ -184,7 +214,6 @@ public class TurnManager : MonoBehaviour
                     break;
 
                 default:
-                    // 原版AI：有嘲讽则强制攻击嘲讽目标，否则找第一个活着的玩家
                     chosenTarget = target ?? bm.GetFirstAlive(bm.playerUnits);
                     if (currentUnit.skills.Count > 0 && Random.value < 0.5f)
                     {
@@ -194,7 +223,6 @@ public class TurnManager : MonoBehaviour
                     break;
             }
 
-            // 执行行动
             if (chosenTarget != null)
             {
                 if (chosenSkill != null)
@@ -204,7 +232,6 @@ public class TurnManager : MonoBehaviour
                 }
                 else
                 {
-                    // 平A（如果没选技能）
                     int rawDmg = currentUnit.GetEffectiveSTR() + currentUnit.weaponAttack;
                     float strCoeff = currentUnit.GetStrengthCoefficient();
                     int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - chosenTarget.GetEffectiveDEF()));
