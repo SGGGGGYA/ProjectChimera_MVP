@@ -94,7 +94,10 @@ public class BattleManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.R))
         {
             ClearHighlights();
-            ReturnToMap();
+            if (battleOver)
+                ReturnToMap();
+            else
+                AttemptRetreat();
             return;
         }
 
@@ -708,6 +711,43 @@ public class BattleManager : MonoBehaviour
         }
 
         target.position = originalPos;
+    }
+
+    void AttemptRetreat()
+    {
+        if (battleOver) return;
+        if (!TurnManager.Instance.isPlayerTurn)
+        {
+            BattleLog.Add("[撤退] 只有玩家回合才能撤退");
+            return;
+        }
+
+        var alive = playerUnits.FindAll(u => u.currentHP > 0);
+        if (alive.Count == 0) return;
+
+        bool allSucceed = true;
+        foreach (var unit in alive)
+        {
+            float chance = Mathf.Max(0.1f, 0.4f - Mathf.Max(0, unit.stress - 100) * 0.01f);
+            if (Random.value >= chance)
+            {
+                allSucceed = false;
+                StressManager.AddStress(unit, 30, StressTag.Combat);
+            }
+        }
+
+        if (allSucceed)
+        {
+            BattleLog.Add("【撤退成功】全队成功撤离！");
+            foreach (var unit in alive)
+                StressManager.AddStress(unit, 15, StressTag.Combat);
+            ReturnToMap();
+        }
+        else
+        {
+            BattleLog.Add("<color=red>【撤退失败】部分队员未能脱战！</color>");
+            EndPlayerTurn();
+        }
     }
 
     public void ReturnToMap()
