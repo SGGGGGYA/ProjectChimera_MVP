@@ -415,17 +415,31 @@ public class BattleSetup : MonoBehaviour
         }
         else
         {
-            bar = new GameObject($"StressBar_{unit.unitName}", typeof(Image));
+            bar = new GameObject($"StressBar_{unit.unitName}", typeof(RectTransform));
             bar.transform.SetParent(canvas.transform, false);
+            bar.layer = 5;
             RectTransform rt = bar.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(60, 8);
-            rt.anchorMin = new Vector2(0.5f, 0);
-            rt.anchorMax = new Vector2(0.5f, 0);
-            rt.pivot = new Vector2(0.5f, 0);
-            Image img = bar.GetComponent<Image>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+
+            GameObject fill = new GameObject("Fill", typeof(RectTransform));
+            fill.layer = 5;
+            fill.transform.SetParent(bar.transform, false);
+            RectTransform fillRt = fill.GetComponent<RectTransform>();
+            fillRt.anchorMin = new Vector2(0, 0);
+            fillRt.anchorMax = new Vector2(1, 1);
+            fillRt.pivot = new Vector2(0.5f, 0.5f);
+            fillRt.offsetMin = Vector2.zero;
+            fillRt.offsetMax = Vector2.zero;
+            fill.AddComponent<CanvasRenderer>();
+            Image img = fill.AddComponent<Image>();
             img.type = Image.Type.Filled;
             img.fillMethod = Image.FillMethod.Horizontal;
             img.fillOrigin = 0;
+            img.fillAmount = 1f;
+            img.raycastTarget = false;
             img.color = Color.green;
         }
 
@@ -434,7 +448,7 @@ public class BattleSetup : MonoBehaviour
             follower = bar.AddComponent<StressBarFollower>();
 
         if (follower.fillImage == null)
-            follower.fillImage = bar.GetComponent<Image>();
+            follower.fillImage = bar.GetComponentInChildren<Image>();
 
         follower.SetTarget(unit.transform, unit);
         unit.stressBarFollower = follower;
