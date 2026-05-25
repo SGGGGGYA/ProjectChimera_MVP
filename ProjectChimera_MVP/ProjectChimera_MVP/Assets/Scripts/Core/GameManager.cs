@@ -44,6 +44,12 @@ public class GameManager : MonoBehaviour
     public List<UnitBattleData> playerTeamData;
     public List<UnitBattleData> enemyTeamData;
 
+    [Header("背包")]
+    public List<ItemStack> inventory = new List<ItemStack>();
+
+    [Header("物品定义")]
+    public List<ItemDefinition> itemDefinitions = new List<ItemDefinition>();
+
     [Header("职业定义")]
     public List<ClassDefinition> classDefinitions = new List<ClassDefinition>();
 
@@ -71,6 +77,7 @@ public class GameManager : MonoBehaviour
         if (!StressManager.initialized)
             StressManager.InitFromConfig(new StressConfig());
 
+        ItemDatabase.Initialize(itemDefinitions);
         InitClassDefinitions();
 
         if (playerTeamData == null || playerTeamData.Count == 0)
@@ -456,6 +463,12 @@ public class GameManager : MonoBehaviour
                 equippedArmor = MakeTestArmor("robe", "法袍", 1)
             }
         };
+
+        inventory = new List<ItemStack>
+        {
+            new ItemStack("health_potion", 2),
+            new ItemStack("stress_herb", 1),
+        };
     }
 
     
@@ -516,15 +529,47 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("WorldMap", LoadSceneMode.Single);
     }
 
+    // ========== 背包操作 ==========
+
+    public int GetItemQuantity(string itemId)
+    {
+        var stack = inventory.Find(s => s.itemId == itemId);
+        return stack?.quantity ?? 0;
+    }
+
+    public void AddItem(string itemId, int qty = 1)
+    {
+        if (qty <= 0) return;
+        var def = ItemDatabase.Get(itemId);
+        int maxStack = def != null ? def.maxStack : 1;
+
+        if (maxStack > 1)
+        {
+            var stack = inventory.Find(s => s.itemId == itemId);
+            if (stack != null) { stack.quantity += qty; return; }
+        }
+        inventory.Add(new ItemStack(itemId, qty));
+    }
+
+    public bool RemoveItem(string itemId, int qty = 1)
+    {
+        var stack = inventory.Find(s => s.itemId == itemId);
+        if (stack == null || stack.quantity < qty) return false;
+        stack.quantity -= qty;
+        if (stack.quantity <= 0) inventory.Remove(stack);
+        return true;
+    }
+
     // ========== 存档系统 ==========
 
-    /// <summary>保存游戏（队伍数据 + 地图位置）</summary>
+    /// <summary>保存游戏（队伍数据 + 地图位置 + 背包）</summary>
     public void SaveGame()
     {
         SaveData data = new SaveData();
         data.playerTeam = playerTeamData;
         data.squadX = savedSquadPos.x;
         data.squadY = savedSquadPos.y;
+        data.inventory = inventory;
         SaveManager.Save(data);
     }
 
@@ -536,7 +581,8 @@ public class GameManager : MonoBehaviour
 
         playerTeamData = data.playerTeam;
         savedSquadPos = new Vector2Int(data.squadX, data.squadY);
-        Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY})");
+        inventory = data.inventory ?? new List<ItemStack>();
+        Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件");
         return true;
     }
 }

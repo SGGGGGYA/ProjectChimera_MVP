@@ -13,6 +13,7 @@ public class SaveData
     public int squadX;
     public int squadY;
     public string timestamp;
+    public List<ItemStack> inventory = new List<ItemStack>();
 }
 
 /// <summary>
