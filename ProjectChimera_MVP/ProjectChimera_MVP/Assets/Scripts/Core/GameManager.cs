@@ -26,6 +26,9 @@ public class UnitBattleData
     public int stress;
     public bool isPlayer;
 
+    [Header("阵型")]
+    public int rank; // 0=前排(近敌), 3=后排(远敌)
+
     public Weapon equippedWeapon;
     public Armor equippedArmor;
     public List<Quirk> quirks = new List<Quirk>();
@@ -116,6 +119,8 @@ public class GameManager : MonoBehaviour
                 skillName = "盾牌猛击", description = "伤害+眩晕",
                 baseDamage = 12, strScaling = 0.8f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 1,
+                canTargetFrontRank = true, canTargetBackRank = false,
                 aiCategory = SkillEffectType.Stun,
                 effectValue = 1, effectDuration = 1,
                 commands = new List<Command>
@@ -129,6 +134,8 @@ public class GameManager : MonoBehaviour
                 skillName = "嘲讽", description = "强迫敌人攻击自己",
                 baseDamage = 3, strScaling = 0.3f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 1,
+                canTargetFrontRank = true, canTargetBackRank = false,
                 aiCategory = SkillEffectType.Taunt,
                 effectDuration = 1,
                 commands = new List<Command>
@@ -142,6 +149,7 @@ public class GameManager : MonoBehaviour
                 skillName = "援护", description = "替一名友方承受伤害",
                 baseDamage = 0,
                 targetType = SkillTargetType.SingleAlly,
+                minUserRank = 0, maxUserRank = 3,
                 aiCategory = SkillEffectType.Protect,
                 effectDuration = 1,
                 commands = new List<Command>
@@ -167,6 +175,8 @@ public class GameManager : MonoBehaviour
                 skillName = "精准射击", description = "高单体伤害",
                 baseDamage = 14, agiScaling = 0.8f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.DirectDamage,
                 commands = new List<Command>
                 {
@@ -178,6 +188,8 @@ public class GameManager : MonoBehaviour
                 skillName = "标记", description = "受伤+20%，持续2回合",
                 baseDamage = 3, agiScaling = 0.2f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.Mark,
                 effectValue = 0.2f, effectDuration = 2,
                 commands = new List<Command>
@@ -191,6 +203,7 @@ public class GameManager : MonoBehaviour
                 skillName = "弹幕覆盖", description = "对全体敌人造成伤害",
                 baseDamage = 7, agiScaling = 0.3f,
                 targetType = SkillTargetType.AllEnemies,
+                minUserRank = 2, maxUserRank = 3,
                 aiCategory = SkillEffectType.AoEDamage,
                 commands = new List<Command>
                 {
@@ -214,6 +227,8 @@ public class GameManager : MonoBehaviour
                 skillName = "嗜血斩击", description = "伤害+自损10%HP+吸血50%",
                 baseDamage = 18,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 1,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.BloodthirstyStrike,
                 commands = new List<Command>
                 {
@@ -224,6 +239,7 @@ public class GameManager : MonoBehaviour
             {
                 skillName = "狂暴之力", description = "STR+5, DEF-3, 持续3回合",
                 targetType = SkillTargetType.Self,
+                minUserRank = 0, maxUserRank = 3,
                 aiCategory = SkillEffectType.BerserkBuff,
                 effectDuration = 3,
                 commands = new List<Command>
@@ -237,6 +253,8 @@ public class GameManager : MonoBehaviour
             {
                 skillName = "殊死一搏", description = "血量越低伤害越高,最高+100%",
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.DesperateStrike,
                 commands = new List<Command>
                 {
@@ -259,6 +277,8 @@ public class GameManager : MonoBehaviour
             {
                 skillName = "精神冲击", description = "精神伤害+15压力",
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.MindShock,
                 commands = new List<Command>
                 {
@@ -269,6 +289,7 @@ public class GameManager : MonoBehaviour
             {
                 skillName = "智慧启迪", description = "减压20点+INT+2持续2回合",
                 targetType = SkillTargetType.SingleAlly,
+                minUserRank = 2, maxUserRank = 3,
                 aiCategory = SkillEffectType.WisdomEnlightenment,
                 effectDuration = 2,
                 commands = new List<Command>
@@ -282,6 +303,8 @@ public class GameManager : MonoBehaviour
             {
                 skillName = "禁忌知识", description = "高额精神伤害,自身+25压力",
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.ForbiddenKnowledge,
                 commands = new List<Command>
                 {
@@ -306,6 +329,8 @@ public class GameManager : MonoBehaviour
                 skillName = "重劈", description = "用力砍下去",
                 baseDamage = 8, strScaling = 0.6f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 1,
+                canTargetFrontRank = true, canTargetBackRank = false,
                 aiCategory = SkillEffectType.DirectDamage,
                 commands = new List<Command>
                 {
@@ -329,6 +354,8 @@ public class GameManager : MonoBehaviour
                 skillName = "精准射击", description = "远程射击",
                 baseDamage = 10, agiScaling = 0.6f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.DirectDamage,
                 commands = new List<Command>
                 {
@@ -352,6 +379,7 @@ public class GameManager : MonoBehaviour
                 skillName = "治疗术", description = "恢复一名队友生命",
                 baseDamage = 15, strScaling = 0.5f, agiScaling = 0.5f,
                 targetType = SkillTargetType.SingleAlly,
+                minUserRank = 2, maxUserRank = 3,
                 aiCategory = SkillEffectType.Heal,
                 commands = new List<Command>
                 {
@@ -363,6 +391,7 @@ public class GameManager : MonoBehaviour
                 skillName = "图腾护盾", description = "为队友附加护盾吸收伤害",
                 baseDamage = 0,
                 targetType = SkillTargetType.SingleAlly,
+                minUserRank = 2, maxUserRank = 3,
                 aiCategory = SkillEffectType.Shield,
                 effectValue = 12, effectDuration = 2,
                 commands = new List<Command>
@@ -375,6 +404,8 @@ public class GameManager : MonoBehaviour
                 skillName = "火球术", description = "对血最少的敌人造成伤害",
                 baseDamage = 12, agiScaling = 0.4f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.DirectDamage,
                 commands = new List<Command>
                 {
@@ -386,6 +417,8 @@ public class GameManager : MonoBehaviour
                 skillName = "恐吓", description = "施加压力伤害",
                 baseDamage = 0,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 2, maxUserRank = 3,
+                canTargetFrontRank = true, canTargetBackRank = true,
                 aiCategory = SkillEffectType.Stress,
                 effectValue = 15,
                 commands = new List<Command>
@@ -410,6 +443,8 @@ public class GameManager : MonoBehaviour
                 skillName = "撕咬", description = "造成伤害 + 30%概率流血",
                 baseDamage = 10, strScaling = 0.8f,
                 targetType = SkillTargetType.SingleEnemy,
+                minUserRank = 0, maxUserRank = 1,
+                canTargetFrontRank = true, canTargetBackRank = false,
                 aiCategory = SkillEffectType.Bleed,
                 effectValue = 4, effectDuration = 2,
                 commands = new List<Command>
@@ -446,7 +481,7 @@ public class GameManager : MonoBehaviour
         {
             new UnitBattleData
             {
-                unitName = "战士",
+                unitName = "战士", rank = 0,
                 VIT = 8, STR = 10, DEF = 6, AGI = 5, INT = 3,
                 weaponAttack = 5, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
@@ -454,15 +489,7 @@ public class GameManager : MonoBehaviour
             },
             new UnitBattleData
             {
-                unitName = "游侠",
-                VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
-                weaponAttack = 3, level = 3, isPlayer = true,
-                equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 2),
-                equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
-            },
-            new UnitBattleData
-            {
-                unitName = "狂战士",
+                unitName = "狂战士", rank = 1,
                 VIT = 10, STR = 12, DEF = 4, AGI = 4, INT = 2,
                 weaponAttack = 6, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("great_axe", "巨斧", StatType.STR, 5),
@@ -470,7 +497,15 @@ public class GameManager : MonoBehaviour
             },
             new UnitBattleData
             {
-                unitName = "学者",
+                unitName = "游侠", rank = 2,
+                VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
+                weaponAttack = 3, level = 3, isPlayer = true,
+                equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 2),
+                equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
+            },
+            new UnitBattleData
+            {
+                unitName = "学者", rank = 3,
                 VIT = 4, STR = 3, DEF = 3, AGI = 7, INT = 12,
                 weaponAttack = 2, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("arcane_staff", "奥术法杖", StatType.INT, 4),
@@ -500,25 +535,51 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        enemyTeamData = new List<UnitBattleData>
+        int template = Random.Range(0, 2);
+        if (template == 0)
         {
-            new UnitBattleData
+            enemyTeamData = new List<UnitBattleData>
             {
-                unitName = "哥布林战士",
-                VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                weaponAttack = 3, level = 2, isPlayer = false,
-                equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
-                equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
-            },
-            new UnitBattleData
+                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 0,
+                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
+                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
+                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 1,
+                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
+                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
+                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 2,
+                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
+                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 3,
+                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) }
+            };
+        }
+        else
+        {
+            enemyTeamData = new List<UnitBattleData>
             {
-                unitName = "哥布林弓手",
-                VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
-                weaponAttack = 2, level = 2, isPlayer = false,
-                equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
-                equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
-            }
-        };
+                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 0,
+                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
+                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
+                new UnitBattleData { unitName = "野狼", isPlayer = false, rank = 1,
+                    VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1, weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 2),
+                    equippedArmor = MakeTestArmor("thick_hide", "厚皮", 2) },
+                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 2,
+                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
+                new UnitBattleData { unitName = "哥布林萨满", isPlayer = false, rank = 3,
+                    VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8, weaponAttack = 0, level = 2,
+                    equippedWeapon = MakeTestWeapon("spirit_staff", "法杖", StatType.INT, 3),
+                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) }
+            };
+        }
 
         currentState = GameState.Battle;
         Debug.Log("[GameManager] 准备加载 BattleScene...");

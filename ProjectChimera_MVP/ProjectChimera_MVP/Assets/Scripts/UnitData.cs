@@ -174,6 +174,9 @@ public class UnitData : MonoBehaviour
     public int ACC => GetFinalStat(StatType.ACC);
     public int DOD => GetFinalStat(StatType.DOD);
 
+    [Header("阵型")]
+    public int rank; // 0=前排(近敌), 3=后排(远敌)
+
     [Header("身份标记")]
     public bool isPlayer;
 

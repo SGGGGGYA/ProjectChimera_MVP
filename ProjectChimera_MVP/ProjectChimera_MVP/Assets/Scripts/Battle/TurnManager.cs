@@ -214,11 +214,13 @@ public class TurnManager : MonoBehaviour
                     break;
 
                 default:
-                    chosenTarget = target ?? bm.GetFirstAlive(bm.playerUnits);
+                    chosenTarget = target ?? GetBestPlayerTarget(bm);
                     if (currentUnit.skills.Count > 0 && Random.value < 0.5f)
                     {
-                        int skillIdx = Random.Range(0, currentUnit.skills.Count);
-                        chosenSkill = currentUnit.skills[skillIdx];
+                        var usableSkills = currentUnit.skills.FindAll(s =>
+                            currentUnit.rank >= s.minUserRank && currentUnit.rank <= s.maxUserRank);
+                        if (usableSkills.Count > 0)
+                            chosenSkill = usableSkills[Random.Range(0, usableSkills.Count)];
                     }
                     break;
             }
@@ -227,6 +229,11 @@ public class TurnManager : MonoBehaviour
             {
                 if (chosenSkill != null)
                 {
+                    if (chosenSkill.targetType == SkillTargetType.SingleEnemy &&
+                        !RankCanHit(currentUnit, chosenTarget, chosenSkill))
+                    {
+                        chosenTarget = GetBestPlayerTarget(bm);
+                    }
                     BattleLog.Add($"[敌人] {currentUnit.unitName} 使用 [{chosenSkill.skillName}]");
                     bm.ExecuteSkill(currentUnit, chosenSkill, chosenTarget);
                 }
@@ -244,6 +251,28 @@ public class TurnManager : MonoBehaviour
         EndTurn();
     }
 
+    bool RankCanHit(UnitData attacker, UnitData target, SkillData skill)
+    {
+        bool targetIsFront = target.rank <= 1;
+        if (targetIsFront && !skill.canTargetFrontRank) return false;
+        if (!targetIsFront && !skill.canTargetBackRank) return false;
+        return true;
+    }
+
+    UnitData GetBestPlayerTarget(BattleManager bm)
+    {
+        var players = bm.playerUnits.Where(u => u.currentHP > 0).ToList();
+        // 优先打前排
+        var front = players.Where(u => u.rank <= 1).ToList();
+        if (front.Count > 0) return front[Random.Range(0, front.Count)];
+        return players.Count > 0 ? players[0] : null;
+    }
+
+    bool SkillUsable(UnitData unit, SkillData skill)
+    {
+        return skill != null && unit.rank >= skill.minUserRank && unit.rank <= skill.maxUserRank;
+    }
+
     // ==================== 哥布林萨满 AI ====================
 
     void ExecuteShamanAI(BattleManager bm, out UnitData target, out SkillData skill)
@@ -251,7 +280,6 @@ public class TurnManager : MonoBehaviour
         target = null;
         skill = null;
 
-        // 获取所有活着的友方
         var allies = bm.enemyUnits.Where(u => u.currentHP > 0 && u != currentUnit).ToList();
 
         // 情况1：有队友血量低于50% → 治疗血最少的
@@ -260,7 +288,7 @@ public class TurnManager : MonoBehaviour
                               .FirstOrDefault();
         if (lowHpAlly != null)
         {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Heal);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Heal && SkillUsable(currentUnit, s));
             target = lowHpAlly;
             if (skill != null) return;
         }
@@ -271,7 +299,7 @@ public class TurnManager : MonoBehaviour
                                               .FirstOrDefault();
         if (highStressPlayer != null)
         {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Stress);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Stress && SkillUsable(currentUnit, s));
             if (skill != null)
             {
                 target = highStressPlayer;
@@ -279,10 +307,10 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // 情况2b：队友都健康且有多个敌人 → 给随机队友上护盾
+        // 情况2b：给随机队友上护盾
         if (allies.Count > 0)
         {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Shield);
+            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Shield && SkillUsable(currentUnit, s));
             if (skill != null)
             {
                 target = allies[Random.Range(0, allies.Count)];
@@ -290,9 +318,9 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // 情况3：只剩自己或没有治疗/护盾/压力技能 → 火球打血最少玩家
-        skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.DirectDamage
-                                          || s.skillName == "火球术");
+        // 情况3：火球打血最少玩家
+        skill = currentUnit.skills.Find(s => SkillUsable(currentUnit, s) &&
+                                          (s.aiCategory == SkillEffectType.DirectDamage || s.skillName == "火球术"));
         var players = bm.playerUnits.Where(u => u.currentHP > 0)
                                     .OrderBy(u => u.currentHP)
                                     .ToList();

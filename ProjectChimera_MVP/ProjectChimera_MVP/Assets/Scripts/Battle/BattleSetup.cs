@@ -96,7 +96,7 @@ public class BattleSetup : MonoBehaviour
         {
             new UnitBattleData
             {
-                unitName = "战士", isPlayer = true,
+                unitName = "战士", isPlayer = true, rank = 0,
                 VIT = 8, STR = 10, DEF = 6, AGI = 5, INT = 3,
                 weaponAttack = 5, level = 3,
                 equippedWeapon = MakeIronSword(),
@@ -104,79 +104,84 @@ public class BattleSetup : MonoBehaviour
             },
             new UnitBattleData
             {
-                unitName = "游侠", isPlayer = true,
+                unitName = "狂战士", isPlayer = true, rank = 1,
+                VIT = 10, STR = 12, DEF = 4, AGI = 4, INT = 2,
+                weaponAttack = 6, level = 3,
+                equippedWeapon = MakeIronSword(),
+                equippedArmor = MakeLeatherArmor()
+            },
+            new UnitBattleData
+            {
+                unitName = "游侠", isPlayer = true, rank = 2,
                 VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
                 weaponAttack = 3, level = 3,
                 equippedWeapon = MakeShortBow(),
                 equippedArmor = MakeLeatherArmor()
+            },
+            new UnitBattleData
+            {
+                unitName = "学者", isPlayer = true, rank = 3,
+                VIT = 4, STR = 3, DEF = 3, AGI = 7, INT = 12,
+                weaponAttack = 2, level = 3,
+                equippedWeapon = MakeSpiritStaff(),
+                equippedArmor = MakeClothArmor()
             }
         };
     }
 
-    private static List<UnitBattleData> GetDefaultEnemyTeam()
+    static UnitBattleData MakeGoblinWarrior(int rank) => new UnitBattleData
     {
-        var encounters = new List<List<UnitBattleData>>
-        {
-            new List<UnitBattleData>
-            {
-                new UnitBattleData
-                {
-                    unitName = "哥布林战士", isPlayer = false,
-                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                    weaponAttack = 3, level = 2,
-                    equippedWeapon = MakeRustySword(),
-                    equippedArmor = MakeClothArmor()
-                },
-                new UnitBattleData
-                {
-                    unitName = "哥布林弓手", isPlayer = false,
-                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
-                    weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeShortBow(),
-                    equippedArmor = MakeClothArmor()
-                }
-            },
-            new List<UnitBattleData>
-            {
-                new UnitBattleData
-                {
-                    unitName = "哥布林萨满", isPlayer = false,
-                    VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8,
-                    weaponAttack = 0, level = 2,
-                    equippedWeapon = MakeSpiritStaff(),
-                    equippedArmor = MakeClothArmor()
-                },
-                new UnitBattleData
-                {
-                    unitName = "哥布林战士", isPlayer = false,
-                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                    weaponAttack = 3, level = 2,
-                    equippedWeapon = MakeRustySword(),
-                    equippedArmor = MakeClothArmor()
-                }
-            },
-            new List<UnitBattleData>
-            {
-                new UnitBattleData
-                {
-                    unitName = "野狼", isPlayer = false,
-                    VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1,
-                    weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeSharpClaws(),
-                    equippedArmor = MakeThickHide()
-                },
-                new UnitBattleData
-                {
-                    unitName = "野狼", isPlayer = false,
-                    VIT = 3, STR = 8, DEF = 3, AGI = 10, INT = 1,
-                    weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeSharpClaws(),
-                    equippedArmor = MakeThickHide()
-                }
-            }
-        };
+        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
+        weaponAttack = 3, level = 2,
+        equippedWeapon = MakeRustySword(), equippedArmor = MakeClothArmor()
+    };
+    static UnitBattleData MakeGoblinArcher(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林弓手", isPlayer = false, rank = rank,
+        VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
+        weaponAttack = 2, level = 2,
+        equippedWeapon = MakeShortBow(), equippedArmor = MakeClothArmor()
+    };
+    static UnitBattleData MakeGoblinShaman(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林萨满", isPlayer = false, rank = rank,
+        VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8,
+        weaponAttack = 0, level = 2,
+        equippedWeapon = MakeSpiritStaff(), equippedArmor = MakeClothArmor()
+    };
+    static UnitBattleData MakeWolf(int rank) => new UnitBattleData
+    {
+        unitName = "野狼", isPlayer = false, rank = rank,
+        VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1,
+        weaponAttack = 2, level = 2,
+        equippedWeapon = MakeSharpClaws(), equippedArmor = MakeThickHide()
+    };
 
-        return encounters[Random.Range(0, encounters.Count)];
+    static List<UnitBattleData> GetFullEnemyTeam()
+    {
+        int template = Random.Range(0, 3);
+        switch (template)
+        {
+            case 0: // 哥布林战队(满编)
+                return new List<UnitBattleData>
+                {
+                    MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+                    MakeGoblinArcher(2),  MakeGoblinShaman(3)
+                };
+            case 1: // 哥布林+萨满
+                return new List<UnitBattleData>
+                {
+                    MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+                    MakeGoblinArcher(2),  MakeGoblinShaman(3)
+                };
+            default: // 狼群
+                return new List<UnitBattleData>
+                {
+                    MakeWolf(0), MakeWolf(1),
+                    MakeWolf(2), MakeWolf(3)
+                };
+        }
     }
 
     void Awake()
@@ -201,11 +206,15 @@ public class BattleSetup : MonoBehaviour
             Debug.Log("[BattleSetup] 无 GameManager，使用默认玩家数据");
         }
 
-        // 敌人数据：始终随机遭遇，增加多样性
-        enemyTeamData = GetDefaultEnemyTeam();
-        Debug.Log($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} + {enemyTeamData[1].unitName}");
+        // 敌人数据：满编4人战队
+        enemyTeamData = GetFullEnemyTeam();
+        Debug.Log($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} ({enemyTeamData.Count}人)");
 
-        // 创建所有玩家单位（吸附到 PlayerPos 锚点）
+        // 分配玩家站位 (0,1=前排近敌, 2,3=后排)
+        for (int i = 0; i < playerTeamData.Count; i++)
+            playerTeamData[i].rank = i;
+
+        // 创建所有玩家单位（前排在中间、后排两侧）
         List<UnitData> playerUnits = new List<UnitData>();
         for (int i = 0; i < playerTeamData.Count; i++)
         {
@@ -213,15 +222,18 @@ public class BattleSetup : MonoBehaviour
             if (i < playerSpawnPoints.Count && playerSpawnPoints[i] != null)
                 pos = playerSpawnPoints[i].position;
             else
-                pos = new Vector3(-5f + i * 2f, -0.5f, 0f);  // 兜底
+                pos = FormationPosition(true, playerTeamData[i].rank);
             UnitData unit = CreateUnit(playerTeamData[i], pos);
             if (unit != null)
+            {
+                unit.rank = playerTeamData[i].rank;
                 playerUnits.Add(unit);
+            }
             else
                 Debug.LogError($"[BattleSetup] 玩家 {playerTeamData[i].unitName} 生成失败");
         }
 
-        // 创建所有敌人单位（吸附到 EnemyPos 锚点）
+        // 创建所有敌人单位（前排在中间、后排两侧）
         List<UnitData> enemyUnits = new List<UnitData>();
         for (int i = 0; i < enemyTeamData.Count; i++)
         {
@@ -229,10 +241,13 @@ public class BattleSetup : MonoBehaviour
             if (i < enemySpawnPoints.Count && enemySpawnPoints[i] != null)
                 pos = enemySpawnPoints[i].position;
             else
-                pos = new Vector3(2f + i * 2f, -0.5f, 0f);  // 兜底
+                pos = FormationPosition(false, enemyTeamData[i].rank);
             UnitData unit = CreateUnit(enemyTeamData[i], pos);
             if (unit != null)
+            {
+                unit.rank = enemyTeamData[i].rank;
                 enemyUnits.Add(unit);
+            }
             else
                 Debug.LogError($"[BattleSetup] 敌人 {enemyTeamData[i].unitName} 生成失败");
         }
@@ -265,10 +280,26 @@ public class BattleSetup : MonoBehaviour
 
     /// <summary>
     /// 计算阵型坐标（暗黑地牢风格）
-    /// 玩家：左半场，index 0 = 前排（靠右近敌），以此类推
-    /// 敌人：右半场，index 0 = 前排（靠左近敌），以此类推
-    /// Y 轴错落：奇偶交替，避免死板直线
+    /// 前排(rank 0-1)：靠中线近，后排(rank 2-3)：远离中线
+    /// Y轴错落：rank奇偶交替
     /// </summary>
+    static Vector3 FormationPosition(bool isPlayer, int rank)
+    {
+        float x;
+        if (isPlayer)
+            x = -2f + rank * 1.2f; // 玩家从左到右: rank0=-0.8, rank1=0.4, rank2=1.6, rank3=2.8 → 修正
+        else
+            x = 2f - rank * 1.2f;  // 敌人从右到左: rank0=2.0, rank1=0.8, rank2=-0.4, rank3=-1.6 → 修正
+
+        // 重新设计：前排靠中线(0)，后排远离中线(±3)
+        if (isPlayer)
+            x = (rank <= 1) ? -1.2f - rank * 0.6f : -2.8f - (rank - 2) * 0.6f;
+        else
+            x = (rank <= 1) ? 1.2f + rank * 0.6f : 2.8f + (rank - 2) * 0.6f;
+
+        float y = (rank % 2 == 0) ? 0.2f : -0.2f;
+        return new Vector3(x, y, 0f);
+    }
 
 
     UnitData CreateUnit(UnitBattleData data, Vector3 position)

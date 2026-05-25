@@ -16,6 +16,12 @@ public class UISkillBarController : MonoBehaviour
 
     private List<GameObject> currentButtons = new List<GameObject>();
 
+    bool CanUseSkill(UnitData unit, SkillData skill)
+    {
+        if (unit == null || skill == null) return false;
+        return unit.rank >= skill.minUserRank && unit.rank <= skill.maxUserRank;
+    }
+
     /// <summary>刷新技能栏：清空旧按钮，为指定单位生成新按钮</summary>
     public void RefreshSkills(UnitData unit)
     {
@@ -38,6 +44,7 @@ public class UISkillBarController : MonoBehaviour
         {
             int skillIndex = i; // 闭包捕获
             SkillData skill = unit.skills[i];
+            bool canUse = CanUseSkill(unit, skill);
 
             GameObject btnObj = Instantiate(skillButtonPrefab, skillBarContainer);
             btnObj.name = $"Btn_{skill.skillName}";
@@ -45,13 +52,19 @@ public class UISkillBarController : MonoBehaviour
             // 设置按钮文字
             TextMeshProUGUI tmp = btnObj.GetComponentInChildren<TextMeshProUGUI>();
             if (tmp != null)
+            {
                 tmp.text = $"[{i + 1}] {skill.skillName}\n{skill.description}";
+                if (!canUse)
+                    tmp.color = Color.gray;
+            }
 
             // 绑定点击事件
             Button btn = btnObj.GetComponent<Button>();
-            if (btn != null && battleManager != null)
+            if (btn != null)
             {
-                btn.onClick.AddListener(() => battleManager.SelectSkill(skillIndex));
+                btn.interactable = canUse;
+                if (canUse && battleManager != null)
+                    btn.onClick.AddListener(() => battleManager.SelectSkill(skillIndex));
             }
 
             currentButtons.Add(btnObj);

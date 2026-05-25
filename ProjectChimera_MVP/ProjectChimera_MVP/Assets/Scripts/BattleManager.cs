@@ -225,8 +225,15 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        var skill = attacker.skills[skillIndex];
+        if (!IsSkillUsableFromRank(attacker, skill))
+        {
+            BattleLog.Add($"[阵型] {attacker.unitName} 在站位 {attacker.rank} 无法使用 [{skill.skillName}]");
+            return;
+        }
+
         selectedSkillIndex = skillIndex;
-        pendingSkill = attacker.skills[skillIndex];
+        pendingSkill = skill;
         inputState = BattleInputState.SkillSelected;
         Debug.Log($"[技能] 选中 {pendingSkill.skillName}");
 
@@ -271,10 +278,10 @@ public class BattleManager : MonoBehaviour
         switch (pendingSkill.targetType)
         {
             case SkillTargetType.SingleEnemy:
-                result = enemyUnits.Contains(unit);
+                result = enemyUnits.Contains(unit) && IsRankValidTarget(unit, pendingSkill);
                 break;
             case SkillTargetType.SingleAlly:
-                result = playerUnits.Contains(unit);
+                result = playerUnits.Contains(unit) && IsRankValidTarget(unit, pendingSkill);
                 break;
             case SkillTargetType.AllEnemies:
                 result = enemyUnits.Contains(unit);
@@ -286,8 +293,21 @@ public class BattleManager : MonoBehaviour
                 result = false;
                 break;
         }
-        Debug.Log($"[IsValidTarget] {unit.unitName} → {result} (targetType: {pendingSkill.targetType})");
         return result;
+    }
+
+    bool IsRankValidTarget(UnitData unit, SkillData skill)
+    {
+        bool isFront = unit.rank <= 1;
+        if (isFront && !skill.canTargetFrontRank) return false;
+        if (!isFront && !skill.canTargetBackRank) return false;
+        return true;
+    }
+
+    bool IsSkillUsableFromRank(UnitData user, SkillData skill)
+    {
+        if (skill == null) return true;
+        return user.rank >= skill.minUserRank && user.rank <= skill.maxUserRank;
     }
 
     /// <summary>进入选目标模式：计算合法目标，设置 Dimmed 状态</summary>
@@ -296,6 +316,13 @@ public class BattleManager : MonoBehaviour
         Debug.Log("EnterTargetingMode 被调用");
         UnitData attacker = TurnManager.Instance.currentUnit;
         if (attacker == null || pendingSkill == null) { CancelSkillSelection(); return; }
+
+        if (!IsSkillUsableFromRank(attacker, pendingSkill))
+        {
+            BattleLog.Add($"[阵型] {attacker.unitName} 在站位 {attacker.rank} 无法使用 [{pendingSkill.skillName}]");
+            CancelSkillSelection();
+            return;
+        }
 
         validTargets = new List<UnitData>();
         switch (pendingSkill.targetType)
@@ -313,6 +340,12 @@ public class BattleManager : MonoBehaviour
                 if (!battleOver)
                     EndPlayerTurn();
                 return;
+        }
+
+        // 阵型过滤
+        if (pendingSkill.targetType != SkillTargetType.AllEnemies)
+        {
+            validTargets = validTargets.Where(u => IsRankValidTarget(u, pendingSkill)).ToList();
         }
 
         if (validTargets.Count == 0)
@@ -465,6 +498,33 @@ public class BattleManager : MonoBehaviour
         {
             CommandExecutor.Execute(attacker, skill, target, this, playerUnits, enemyUnits);
         }
+
+        // 移位(推进/击退/冲锋)
+        if (skill.targetShift != 0 && target != null && target.currentHP > 0)
+            ApplyRankShift(target, skill.targetShift, enemyUnits.Contains(target) ? enemyUnits : playerUnits);
+        if (skill.selfShift != 0)
+            ApplyRankShift(attacker, skill.selfShift, attacker.isPlayer ? playerUnits : enemyUnits);
+    }
+
+    /// <summary>移位: 将单位向指定方向移动若干站位</summary>
+    void ApplyRankShift(UnitData unit, int shift, List<UnitData> teamList)
+    {
+        int newRank = Mathf.Clamp(unit.rank + shift, 0, 3);
+        if (newRank == unit.rank) return;
+
+        // 检查目标站位是否被占据
+        UnitData occupant = teamList.Find(u => u != unit && u.currentHP > 0 && u.rank == newRank);
+        if (occupant != null)
+        {
+            int occupantDir = (shift > 0) ? 1 : -1;
+            int occupantNew = Mathf.Clamp(occupant.rank + occupantDir, 0, 3);
+            if (occupantNew == occupant.rank) return; // 挤不动，不移位
+            BattleLog.Add($"[移位] {occupant.unitName} 被挤到站位 {occupantNew}");
+            occupant.rank = occupantNew;
+        }
+
+        BattleLog.Add($"[移位] {unit.unitName} 从站位 {unit.rank} 移动到 {newRank}");
+        unit.rank = newRank;
     }
 
     // ==================== 基础攻击 ====================
@@ -475,7 +535,18 @@ public class BattleManager : MonoBehaviour
         if (attacker == null) return;
         if (!playerUnits.Contains(attacker)) return;
 
-        UnitData target = GetFirstAlive(enemyUnits);
+        // 前排角色只能平A前排，后排角色可任意
+        bool attackerIsFront = attacker.rank <= 1;
+        List<UnitData> alive = enemyUnits.FindAll(u => u.currentHP > 0);
+        UnitData target;
+        if (attackerIsFront)
+        {
+            target = alive.Find(u => u.rank <= 1) ?? alive[0];
+        }
+        else
+        {
+            target = alive[0];
+        }
         if (target == null)
         {
             battleOver = true;
@@ -660,6 +731,7 @@ public class BattleManager : MonoBehaviour
                 data.equippedWeapon = unit.equippedWeapon;
                 data.equippedArmor = unit.equippedArmor;
                 data.quirks = unit.quirks;
+                data.rank = unit.rank;
             }
             gm.ReturnToWorldMap();
         }
