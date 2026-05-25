@@ -3,22 +3,12 @@ using UnityEngine;
 
 public static class UIFonts
 {
-    static TMP_FontAsset _chinese;
-
-    public static TMP_FontAsset Chinese
-    {
-        get
-        {
-            if (_chinese == null)
-                _chinese = Resources.Load<TMP_FontAsset>("Unifont_Universal_SDF");
-            return _chinese;
-        }
-    }
+    public static TMP_FontAsset chineseFont;
 
     public static void Apply(TextMeshProUGUI tmp)
     {
-        if (tmp != null && Chinese != null)
-            tmp.font = Chinese;
+        if (tmp != null && chineseFont != null)
+            tmp.font = chineseFont;
     }
 
     public static TextMeshProUGUI CreateLabel(GameObject parent, string name, string text, int fontSize, Color color)

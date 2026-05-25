@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -47,6 +48,9 @@ public class GameManager : MonoBehaviour
     [Header("背包")]
     public List<ItemStack> inventory = new List<ItemStack>();
 
+    [Header("中文字体（拖入 Unifont_Universal_SDF）")]
+    public TMPro.TMP_FontAsset chineseFont;
+
     [Header("物品定义")]
     public List<ItemDefinition> itemDefinitions = new List<ItemDefinition>();
 
@@ -76,6 +80,9 @@ public class GameManager : MonoBehaviour
     {
         if (!StressManager.initialized)
             StressManager.InitFromConfig(new StressConfig());
+
+        if (chineseFont != null)
+            UIFonts.chineseFont = chineseFont;
 
         ItemDatabase.Initialize(itemDefinitions);
         InitClassDefinitions();
