@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
@@ -11,7 +12,7 @@ public static class StressBarPrefabCreator
         root.layer = 5;
 
         RectTransform rt = root.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(60, 8);
+        rt.sizeDelta = new Vector2(80, 12);
         rt.anchorMin = new Vector2(0.5f, 0.5f);
         rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.pivot = new Vector2(0.5f, 0.5f);
@@ -31,7 +32,7 @@ public static class StressBarPrefabCreator
         fillRt.offsetMin = Vector2.zero;
         fillRt.offsetMax = Vector2.zero;
 
-        CanvasRenderer cr = fill.AddComponent<CanvasRenderer>();
+        fill.AddComponent<CanvasRenderer>();
         Image img = fill.AddComponent<Image>();
         img.type = Image.Type.Filled;
         img.fillMethod = Image.FillMethod.Horizontal;
@@ -41,6 +42,27 @@ public static class StressBarPrefabCreator
         img.raycastTarget = false;
 
         follower.fillImage = img;
+
+        GameObject label = new GameObject("Label", typeof(RectTransform));
+        label.layer = 5;
+        label.transform.SetParent(root.transform, false);
+
+        RectTransform labelRt = label.GetComponent<RectTransform>();
+        labelRt.anchorMin = new Vector2(1, 0);
+        labelRt.anchorMax = new Vector2(1, 0);
+        labelRt.pivot = new Vector2(0, 0.5f);
+        labelRt.anchoredPosition = new Vector2(4, 0);
+        labelRt.sizeDelta = new Vector2(50, 14);
+
+        CanvasRenderer cr2 = label.AddComponent<CanvasRenderer>();
+        TextMeshProUGUI tmp = label.AddComponent<TextMeshProUGUI>();
+        tmp.text = "0/200";
+        tmp.fontSize = 12;
+        tmp.alignment = TextAlignmentOptions.Left;
+        tmp.color = Color.green;
+        tmp.raycastTarget = false;
+
+        follower.stressText = tmp;
 
         string path = "Assets/Resources/StressBar.prefab";
         PrefabUtility.SaveAsPrefabAsset(root, path);

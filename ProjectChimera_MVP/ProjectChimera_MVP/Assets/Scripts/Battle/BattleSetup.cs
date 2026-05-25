@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -419,7 +420,7 @@ public class BattleSetup : MonoBehaviour
             bar.transform.SetParent(canvas.transform, false);
             bar.layer = 5;
             RectTransform rt = bar.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(60, 8);
+            rt.sizeDelta = new Vector2(80, 12);
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
@@ -449,6 +450,27 @@ public class BattleSetup : MonoBehaviour
 
         if (follower.fillImage == null)
             follower.fillImage = bar.GetComponentInChildren<Image>();
+
+        if (follower.stressText == null)
+        {
+            GameObject label = new GameObject("Label", typeof(RectTransform));
+            label.layer = 5;
+            label.transform.SetParent(bar.transform, false);
+            RectTransform lrt = label.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(1, 0);
+            lrt.anchorMax = new Vector2(1, 0);
+            lrt.pivot = new Vector2(0, 0.5f);
+            lrt.anchoredPosition = new Vector2(4, 0);
+            lrt.sizeDelta = new Vector2(50, 14);
+            label.AddComponent<CanvasRenderer>();
+            TextMeshProUGUI tmp = label.AddComponent<TextMeshProUGUI>();
+            tmp.text = "0/200";
+            tmp.fontSize = 12;
+            tmp.alignment = TextAlignmentOptions.Left;
+            tmp.color = Color.green;
+            tmp.raycastTarget = false;
+            follower.stressText = tmp;
+        }
 
         follower.SetTarget(unit.transform, unit);
         unit.stressBarFollower = follower;
