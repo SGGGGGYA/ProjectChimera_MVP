@@ -208,7 +208,7 @@ public class UIInventoryController : MonoBehaviour
     static Equipment CloneEquipment(Equipment src)
     {
         if (src == null) return null;
-        var dst = src is Weapon ? new Weapon() : new Armor();
+        var dst = src is Weapon ? (Equipment)new Weapon() : new Armor();
         dst.id = src.id;
         dst.equipmentName = src.equipmentName;
         dst.mods = new List<StatMod>(src.mods);
