@@ -202,6 +202,9 @@ public class UnitData : MonoBehaviour
     public SpriteRenderer hpBarBg;
     public HPBarFollower hpBarFollower;
 
+    [Header("压力条引用")]
+    public StressBarFollower stressBarFollower;
+
     [Header("选中光圈")]
     public GameObject selectCircle;
 

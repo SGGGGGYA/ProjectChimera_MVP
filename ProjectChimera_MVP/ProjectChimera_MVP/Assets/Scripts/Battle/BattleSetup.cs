@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BattleSetup : MonoBehaviour
 {
@@ -22,6 +23,7 @@ public class BattleSetup : MonoBehaviour
 
     [Header("UI 引用")]
     public GameObject hpBarPrefab;    // 血条预制体
+    public GameObject stressBarPrefab; // 压力条预制体
     public Canvas battleCanvas;       // 战斗场景的 Canvas
 
     // 独立调试用的默认队伍数据
@@ -325,9 +327,10 @@ public class BattleSetup : MonoBehaviour
 
         // UnitClickDetector 已在预制体上，无需 AddComponent
 
-        // ==================== 血条 ====================
+        // ==================== 血条 + 压力条 ====================
 
         CreateHPBar(unit);
+        CreateStressBar(unit);
         return unit;
     }
 
@@ -397,5 +400,43 @@ public class BattleSetup : MonoBehaviour
         unit.hpBarFollower = follower;
     }
 
+    void CreateStressBar(UnitData unit)
+    {
+        Canvas canvas = battleCanvas;
+        if (canvas == null)
+            canvas = FindObjectOfType<Canvas>();
 
+        if (canvas == null) return;
+
+        GameObject bar;
+        if (stressBarPrefab != null)
+        {
+            bar = Instantiate(stressBarPrefab, canvas.transform);
+        }
+        else
+        {
+            bar = new GameObject($"StressBar_{unit.unitName}", typeof(Image));
+            bar.transform.SetParent(canvas.transform, false);
+            RectTransform rt = bar.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(60, 8);
+            rt.anchorMin = new Vector2(0.5f, 0);
+            rt.anchorMax = new Vector2(0.5f, 0);
+            rt.pivot = new Vector2(0.5f, 0);
+            Image img = bar.GetComponent<Image>();
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Horizontal;
+            img.fillOrigin = 0;
+            img.color = Color.green;
+        }
+
+        StressBarFollower follower = bar.GetComponent<StressBarFollower>();
+        if (follower == null)
+            follower = bar.AddComponent<StressBarFollower>();
+
+        if (follower.fillImage == null)
+            follower.fillImage = bar.GetComponent<Image>();
+
+        follower.SetTarget(unit.transform, unit);
+        unit.stressBarFollower = follower;
+    }
 }
