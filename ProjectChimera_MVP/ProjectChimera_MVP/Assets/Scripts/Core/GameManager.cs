@@ -77,11 +77,15 @@ public class GameManager : MonoBehaviour
         if (!StressManager.initialized)
             StressManager.InitFromConfig(new StressConfig());
 
-        if (FindObjectOfType<UIInventoryController>() == null)
-            new GameObject("UIInventoryController").AddComponent<UIInventoryController>();
-
         ItemDatabase.Initialize(itemDefinitions);
         InitClassDefinitions();
+
+        if (FindObjectOfType<UIInventoryController>() == null)
+        {
+            var invGO = new GameObject("UIInventoryController");
+            DontDestroyOnLoad(invGO);
+            invGO.AddComponent<UIInventoryController>();
+        }
 
         if (playerTeamData == null || playerTeamData.Count == 0)
             CreateTestData();
