@@ -24,6 +24,10 @@ public class UnitBattleData
     public int currentExp;
     public int stress;
     public bool isPlayer;
+
+    public Weapon equippedWeapon;
+    public Armor equippedArmor;
+    public List<Quirk> quirks = new List<Quirk>();
 }
 
 public class GameManager : MonoBehaviour
@@ -404,6 +408,17 @@ public class GameManager : MonoBehaviour
         return classDefinitions.Find(c => c.unitName == unitName);
     }
 
+    Weapon MakeTestWeapon(string id, string name, StatType stat, int amount) => new Weapon
+    {
+        id = id, equipmentName = name,
+        mods = new List<StatMod> { new StatMod { stat = stat, amount = amount, isPercent = false } }
+    };
+    Armor MakeTestArmor(string id, string name, int def) => new Armor
+    {
+        id = id, equipmentName = name,
+        mods = new List<StatMod> { new StatMod { stat = StatType.DEF, amount = def, isPercent = false } }
+    };
+
     void CreateTestData()
     {
         playerTeamData = new List<UnitBattleData>
@@ -412,25 +427,33 @@ public class GameManager : MonoBehaviour
             {
                 unitName = "战士",
                 VIT = 8, STR = 10, DEF = 6, AGI = 5, INT = 3,
-                weaponAttack = 5, level = 3, isPlayer = true
+                weaponAttack = 5, level = 3, isPlayer = true,
+                equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
+                equippedArmor = MakeTestArmor("plate_armor", "铠甲", 3)
             },
             new UnitBattleData
             {
                 unitName = "游侠",
                 VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
-                weaponAttack = 3, level = 3, isPlayer = true
+                weaponAttack = 3, level = 3, isPlayer = true,
+                equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 2),
+                equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
             },
             new UnitBattleData
             {
                 unitName = "狂战士",
                 VIT = 10, STR = 12, DEF = 4, AGI = 4, INT = 2,
-                weaponAttack = 6, level = 3, isPlayer = true
+                weaponAttack = 6, level = 3, isPlayer = true,
+                equippedWeapon = MakeTestWeapon("great_axe", "巨斧", StatType.STR, 5),
+                equippedArmor = MakeTestArmor("hide_armor", "硬皮甲", 2)
             },
             new UnitBattleData
             {
                 unitName = "学者",
                 VIT = 4, STR = 3, DEF = 3, AGI = 7, INT = 12,
-                weaponAttack = 2, level = 3, isPlayer = true
+                weaponAttack = 2, level = 3, isPlayer = true,
+                equippedWeapon = MakeTestWeapon("arcane_staff", "奥术法杖", StatType.INT, 4),
+                equippedArmor = MakeTestArmor("robe", "法袍", 1)
             }
         };
     }
@@ -456,13 +479,17 @@ public class GameManager : MonoBehaviour
             {
                 unitName = "哥布林战士",
                 VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                weaponAttack = 3, level = 2, isPlayer = false
+                weaponAttack = 3, level = 2, isPlayer = false,
+                equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
+                equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
             },
             new UnitBattleData
             {
                 unitName = "哥布林弓手",
                 VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
-                weaponAttack = 2, level = 2, isPlayer = false
+                weaponAttack = 2, level = 2, isPlayer = false,
+                equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
+                equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
             }
         };
 

@@ -657,6 +657,9 @@ public class BattleManager : MonoBehaviour
                 data.INT = unit.INT;
                 data.weaponAttack = unit.weaponAttack;
                 data.stress = unit.stress;
+                data.equippedWeapon = unit.equippedWeapon;
+                data.equippedArmor = unit.equippedArmor;
+                data.quirks = unit.quirks;
             }
             gm.ReturnToWorldMap();
         }

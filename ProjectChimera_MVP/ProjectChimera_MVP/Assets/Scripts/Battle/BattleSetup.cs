@@ -28,6 +28,68 @@ public class BattleSetup : MonoBehaviour
     public Canvas battleCanvas;       // 战斗场景的 Canvas
 
     // 独立调试用的默认队伍数据
+    // ==================== 默认装备工厂 ====================
+
+    static Weapon MakeIronSword() => new Weapon
+    {
+        id = "iron_sword", equipmentName = "铁剑",
+        mods = new List<StatMod> { new StatMod { stat = StatType.STR, amount = 3, isPercent = false } }
+    };
+    static Armor MakePlateArmor() => new Armor
+    {
+        id = "plate_armor", equipmentName = "铠甲",
+        mods = new List<StatMod> { new StatMod { stat = StatType.DEF, amount = 3, isPercent = false } }
+    };
+    static Weapon MakeShortBow() => new Weapon
+    {
+        id = "short_bow", equipmentName = "短弓",
+        mods = new List<StatMod>
+        {
+            new StatMod { stat = StatType.AGI, amount = 2, isPercent = false },
+            new StatMod { stat = StatType.STR, amount = 1, isPercent = false }
+        }
+    };
+    static Armor MakeLeatherArmor() => new Armor
+    {
+        id = "leather_armor", equipmentName = "皮甲",
+        mods = new List<StatMod> { new StatMod { stat = StatType.DEF, amount = 2, isPercent = false } }
+    };
+    static Weapon MakeRustySword() => new Weapon
+    {
+        id = "rusty_sword", equipmentName = "锈剑",
+        mods = new List<StatMod> { new StatMod { stat = StatType.STR, amount = 1, isPercent = false } }
+    };
+    static Armor MakeClothArmor() => new Armor
+    {
+        id = "cloth_armor", equipmentName = "布甲",
+        mods = new List<StatMod> { new StatMod { stat = StatType.DEF, amount = 1, isPercent = false } }
+    };
+    static Weapon MakeSpiritStaff() => new Weapon
+    {
+        id = "spirit_staff", equipmentName = "法杖",
+        mods = new List<StatMod> { new StatMod { stat = StatType.INT, amount = 3, isPercent = false } }
+    };
+    static Weapon MakeSharpClaws() => new Weapon
+    {
+        id = "sharp_claws", equipmentName = "利爪",
+        mods = new List<StatMod>
+        {
+            new StatMod { stat = StatType.STR, amount = 2, isPercent = false },
+            new StatMod { stat = StatType.AGI, amount = 1, isPercent = false }
+        }
+    };
+    static Armor MakeThickHide() => new Armor
+    {
+        id = "thick_hide", equipmentName = "厚皮",
+        mods = new List<StatMod>
+        {
+            new StatMod { stat = StatType.DEF, amount = 2, isPercent = false },
+            new StatMod { stat = StatType.MaxHP, amount = 10, isPercent = false }
+        }
+    };
+
+    // ==================== 默认队伍 ====================
+
     private static List<UnitBattleData> GetDefaultPlayerTeam()
     {
         return new List<UnitBattleData>
@@ -36,68 +98,80 @@ public class BattleSetup : MonoBehaviour
             {
                 unitName = "战士", isPlayer = true,
                 VIT = 8, STR = 10, DEF = 6, AGI = 5, INT = 3,
-                weaponAttack = 5, level = 3
+                weaponAttack = 5, level = 3,
+                equippedWeapon = MakeIronSword(),
+                equippedArmor = MakePlateArmor()
             },
             new UnitBattleData
             {
                 unitName = "游侠", isPlayer = true,
                 VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
-                weaponAttack = 3, level = 3
+                weaponAttack = 3, level = 3,
+                equippedWeapon = MakeShortBow(),
+                equippedArmor = MakeLeatherArmor()
             }
         };
     }
 
     private static List<UnitBattleData> GetDefaultEnemyTeam()
     {
-        // 随机遭遇配置
         var encounters = new List<List<UnitBattleData>>
         {
-            // 遭遇1：原版哥布林组合
             new List<UnitBattleData>
             {
                 new UnitBattleData
                 {
                     unitName = "哥布林战士", isPlayer = false,
                     VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                    weaponAttack = 3, level = 2
+                    weaponAttack = 3, level = 2,
+                    equippedWeapon = MakeRustySword(),
+                    equippedArmor = MakeClothArmor()
                 },
                 new UnitBattleData
                 {
                     unitName = "哥布林弓手", isPlayer = false,
                     VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
-                    weaponAttack = 2, level = 2
+                    weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeShortBow(),
+                    equippedArmor = MakeClothArmor()
                 }
             },
-            // 遭遇2：哥布林萨满 + 哥布林战士（护卫+辅助）
             new List<UnitBattleData>
             {
                 new UnitBattleData
                 {
                     unitName = "哥布林萨满", isPlayer = false,
                     VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8,
-                    weaponAttack = 0, level = 2
+                    weaponAttack = 0, level = 2,
+                    equippedWeapon = MakeSpiritStaff(),
+                    equippedArmor = MakeClothArmor()
                 },
                 new UnitBattleData
                 {
                     unitName = "哥布林战士", isPlayer = false,
                     VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
-                    weaponAttack = 3, level = 2
+                    weaponAttack = 3, level = 2,
+                    equippedWeapon = MakeRustySword(),
+                    equippedArmor = MakeClothArmor()
                 }
             },
-            // 遭遇3：野狼群（双狼）
             new List<UnitBattleData>
             {
                 new UnitBattleData
                 {
                     unitName = "野狼", isPlayer = false,
                     VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1,
-                    weaponAttack = 2, level = 2
+                    weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeSharpClaws(),
+                    equippedArmor = MakeThickHide()
                 },
                 new UnitBattleData
                 {
                     unitName = "野狼", isPlayer = false,
                     VIT = 3, STR = 8, DEF = 3, AGI = 10, INT = 1,
-                    weaponAttack = 2, level = 2
+                    weaponAttack = 2, level = 2,
+                    equippedWeapon = MakeSharpClaws(),
+                    equippedArmor = MakeThickHide()
                 }
             }
         };
@@ -325,6 +399,10 @@ public class BattleSetup : MonoBehaviour
         unit.stress = data.stress;
         unit.stressResistRate = Mathf.Min(StressManager.config.baseResist + data.level * StressManager.config.resistPerLevel, StressManager.config.maxResist);
         unit.skills = classDef != null ? new List<SkillData>(classDef.skillPool) : new List<SkillData>();
+
+        unit.equippedWeapon = data.equippedWeapon;
+        unit.equippedArmor = data.equippedArmor;
+        unit.quirks = data.quirks ?? new List<Quirk>();
 
         // UnitClickDetector 已在预制体上，无需 AddComponent
 
