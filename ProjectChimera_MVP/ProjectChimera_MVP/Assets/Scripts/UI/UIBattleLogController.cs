@@ -2,19 +2,22 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// 战斗日志 uGUI 控制器 — 挂在 ScrollRect 上
-/// </summary>
 public class UIBattleLogController : MonoBehaviour
 {
     [Header("引用")]
-    public ScrollRect scrollRect;           // 整个 ScrollRect
-    public TextMeshProUGUI logText;         // Content 下的 TMP 文本
+    public ScrollRect scrollRect;
+    public TextMeshProUGUI logText;
     public int maxLines = 20;
+
+    [Header("最小化")]
+    public GameObject expandedArea;
+    public Button toggleButton;
+    public TextMeshProUGUI toggleLabel;
+
+    bool isMinimized;
 
     void Awake()
     {
-        // 订阅日志更新
         BattleLog.OnNewEntry += Refresh;
     }
 
@@ -25,14 +28,69 @@ public class UIBattleLogController : MonoBehaviour
 
     void Start()
     {
-        Refresh(); // 初始显示
+        if (toggleButton == null)
+            CreateToggleButton();
+
+        toggleButton.onClick.AddListener(ToggleMinimize);
+
+        if (expandedArea == null && scrollRect != null)
+            expandedArea = scrollRect.gameObject;
+
+        if (toggleLabel == null && toggleButton != null)
+            toggleLabel = toggleButton.GetComponentInChildren<TextMeshProUGUI>();
+
+        Refresh();
+    }
+
+    void CreateToggleButton()
+    {
+        var go = new GameObject("MinimizeBtn", typeof(RectTransform));
+        go.layer = 5;
+        go.transform.SetParent(transform.parent ?? transform, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(1, 1);
+        rt.anchorMax = new Vector2(1, 1);
+        rt.pivot = new Vector2(1, 1);
+        rt.sizeDelta = new Vector2(30, 24);
+        rt.anchoredPosition = new Vector2(-2, -2);
+
+        go.AddComponent<CanvasRenderer>();
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+
+        var label = new GameObject("Label", typeof(RectTransform));
+        label.layer = 5;
+        label.transform.SetParent(go.transform, false);
+        var lrt = label.GetComponent<RectTransform>();
+        lrt.anchorMin = Vector2.zero;
+        lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = Vector2.zero;
+        lrt.offsetMax = Vector2.zero;
+        label.AddComponent<CanvasRenderer>();
+        var tmp = label.AddComponent<TextMeshProUGUI>();
+        tmp.text = "—";
+        tmp.fontSize = 16;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+
+        toggleButton = go.AddComponent<Button>();
+        toggleLabel = tmp;
+    }
+
+    void ToggleMinimize()
+    {
+        isMinimized = !isMinimized;
+        if (expandedArea != null)
+            expandedArea.SetActive(!isMinimized);
+        if (toggleLabel != null)
+            toggleLabel.text = isMinimized ? "日志" : "—";
     }
 
     void Refresh()
     {
         if (logText == null || scrollRect == null) return;
 
-        // 收集最新的 N 条
         var entries = BattleLog.Entries;
         int start = Mathf.Max(0, entries.Count - maxLines);
         string html = "";
@@ -52,7 +110,6 @@ public class UIBattleLogController : MonoBehaviour
         }
         logText.text = html;
 
-        // 自动滚到底部
         Canvas.ForceUpdateCanvases();
         scrollRect.verticalNormalizedPosition = 0f;
     }
