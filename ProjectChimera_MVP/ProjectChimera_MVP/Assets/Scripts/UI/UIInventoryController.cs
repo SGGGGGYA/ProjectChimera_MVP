@@ -100,6 +100,7 @@ public class UIInventoryController : MonoBehaviour
         titleTmp.fontSize = 20;
         titleTmp.alignment = TextAlignmentOptions.Center;
         titleTmp.color = Color.white;
+        UIFonts.Apply(titleTmp);
 
         var gridObj = new GameObject("ItemGrid", typeof(RectTransform));
         gridObj.layer = 5;
@@ -188,6 +189,7 @@ public class UIInventoryController : MonoBehaviour
         tmp.fontSize = fontSize;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = color;
+        UIFonts.Apply(tmp);
         return tmp;
     }
 
@@ -214,12 +216,7 @@ public class UIInventoryController : MonoBehaviour
         lrt.anchorMax = Vector2.one;
         lrt.offsetMin = Vector2.zero;
         lrt.offsetMax = Vector2.zero;
-        lbl.AddComponent<CanvasRenderer>();
-        var tmp = lbl.AddComponent<TextMeshProUGUI>();
-        tmp.text = label;
-        tmp.fontSize = 14;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = Color.white;
+        var tmp = UIFonts.CreateLabel(lbl, "Label", label, 14, Color.white);
 
         return go.AddComponent<Button>();
     }

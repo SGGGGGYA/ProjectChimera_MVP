@@ -59,20 +59,7 @@ public class UIBattleLogController : MonoBehaviour
         var img = go.AddComponent<Image>();
         img.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
 
-        var label = new GameObject("Label", typeof(RectTransform));
-        label.layer = 5;
-        label.transform.SetParent(go.transform, false);
-        var lrt = label.GetComponent<RectTransform>();
-        lrt.anchorMin = Vector2.zero;
-        lrt.anchorMax = Vector2.one;
-        lrt.offsetMin = Vector2.zero;
-        lrt.offsetMax = Vector2.zero;
-        label.AddComponent<CanvasRenderer>();
-        var tmp = label.AddComponent<TextMeshProUGUI>();
-        tmp.text = "—";
-        tmp.fontSize = 16;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = Color.white;
+        var tmp = UIFonts.CreateLabel(go, "Label", "—", 16, Color.white);
 
         toggleButton = go.AddComponent<Button>();
         toggleLabel = tmp;

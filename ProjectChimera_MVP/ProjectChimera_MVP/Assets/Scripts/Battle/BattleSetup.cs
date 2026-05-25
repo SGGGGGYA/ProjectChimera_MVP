@@ -540,13 +540,8 @@ public class BattleSetup : MonoBehaviour
             lrt.pivot = new Vector2(0, 0.5f);
             lrt.anchoredPosition = new Vector2(4, 0);
             lrt.sizeDelta = new Vector2(50, 14);
-            label.AddComponent<CanvasRenderer>();
-            TextMeshProUGUI tmp = label.AddComponent<TextMeshProUGUI>();
-            tmp.text = "0/200";
-            tmp.fontSize = 12;
+            TextMeshProUGUI tmp = UIFonts.CreateLabel(label, "TMP", "0/200", 12, Color.green);
             tmp.alignment = TextAlignmentOptions.Left;
-            tmp.color = Color.green;
-            tmp.raycastTarget = false;
             follower.stressText = tmp;
         }
 
