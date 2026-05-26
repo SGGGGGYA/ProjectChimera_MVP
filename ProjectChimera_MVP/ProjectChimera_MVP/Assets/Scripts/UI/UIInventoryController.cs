@@ -318,27 +318,75 @@ public class UIInventoryController : MonoBehaviour
         var def = ItemDatabase.Get(selectedStack.itemId);
         if (def == null || def.category != ItemCategory.Consumable) return;
 
-        bool used = false;
-        if (def.itemId == "health_potion" && gm.playerTeamData.Count > 0)
+        if (def.healAmount > 0)
         {
-            used = true;
-        }
-        else if (def.itemId == "stress_herb")
-        {
-            foreach (var unit in gm.playerTeamData)
+            var healAmt = def.healAmount;
+            var itemName = def.itemName;
+            var stack = selectedStack;
+            ShowCharSelectorGeneric((unit) =>
             {
-                unit.stress = Mathf.Max(0, unit.stress - 15);
-                used = true;
-                break;
-            }
+                unit.currentHP = Mathf.Min(unit.currentHP + healAmt, unit.MaxHp);
+                gm.RemoveItem(stack.itemId, 1);
+                Refresh();
+                detailPanel.SetActive(false);
+                charSelector.SetActive(false);
+                Debug.Log($"[背包] {itemName} 对 {unit.unitName} 使用了，回复 {healAmt} HP");
+            });
+            return;
+        }
+        else if (def.stressRelief > 0)
+        {
+            var reliefAmt = def.stressRelief;
+            var itemName = def.itemName;
+            var stack = selectedStack;
+            ShowCharSelectorGeneric((unit) =>
+            {
+                unit.stress = Mathf.Max(0, unit.stress - reliefAmt);
+                gm.RemoveItem(stack.itemId, 1);
+                Refresh();
+                detailPanel.SetActive(false);
+                charSelector.SetActive(false);
+                Debug.Log($"[背包] {itemName} 对 {unit.unitName} 使用了，减压 {reliefAmt}");
+            });
+            return;
         }
 
-        if (used)
+        gm.RemoveItem(selectedStack.itemId, 1);
+        Refresh();
+        detailPanel.SetActive(false);
+    }
+
+    void ShowCharSelectorGeneric(UnityEngine.Events.UnityAction<UnitBattleData> onSelect)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        foreach (Transform t in charButtonGrid)
+            Destroy(t.gameObject);
+
+        for (int i = 0; i < gm.playerTeamData.Count; i++)
         {
-            gm.RemoveItem(selectedStack.itemId, 1);
-            Refresh();
-            detailPanel.SetActive(false);
+            var unit = gm.playerTeamData[i];
+            var go = new GameObject("CharBtn", typeof(RectTransform));
+            go.layer = 5;
+            go.transform.SetParent(charButtonGrid, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(100, 30);
+
+            var tmp = MakeLabel(go, "Label", 0, 0.5f, 0, unit.unitName, 14, Color.white);
+            var lrt = tmp.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = Vector2.zero;
+            lrt.offsetMax = Vector2.zero;
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.25f, 0.25f, 0.3f);
+
+            int idx = i;
+            go.AddComponent<Button>().onClick.AddListener(() => onSelect(gm.playerTeamData[idx]));
         }
+        charSelector.SetActive(true);
     }
 
     void ShowCharSelector()

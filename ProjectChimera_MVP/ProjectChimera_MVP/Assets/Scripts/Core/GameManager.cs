@@ -50,6 +50,7 @@ public class GameManager : MonoBehaviour
 
     [Header("背包")]
     public List<ItemStack> inventory = new List<ItemStack>();
+    public int gold = 100;
 
     [Header("中文字体（拖入 Unifont_Universal_SDF）")]
     public TMPro.TMP_FontAsset chineseFont;
@@ -513,6 +514,7 @@ public class GameManager : MonoBehaviour
             }
         };
 
+        gold = 100;
         inventory = new List<ItemStack>
         {
             new ItemStack("health_potion", 2),
@@ -645,6 +647,7 @@ public class GameManager : MonoBehaviour
         data.squadX = savedSquadPos.x;
         data.squadY = savedSquadPos.y;
         data.inventory = inventory;
+        data.gold = gold;
         SaveManager.Save(data);
     }
 
@@ -657,7 +660,8 @@ public class GameManager : MonoBehaviour
         playerTeamData = data.playerTeam;
         savedSquadPos = new Vector2Int(data.squadX, data.squadY);
         inventory = data.inventory ?? new List<ItemStack>();
-        Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件");
+        gold = data.gold;
+        Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件, 金币{gold}");
         return true;
     }
 }

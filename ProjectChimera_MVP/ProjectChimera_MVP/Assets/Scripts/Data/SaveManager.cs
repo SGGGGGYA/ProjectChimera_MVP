@@ -14,6 +14,7 @@ public class SaveData
     public int squadY;
     public string timestamp;
     public List<ItemStack> inventory = new List<ItemStack>();
+    public int gold;
 }
 
 /// <summary>

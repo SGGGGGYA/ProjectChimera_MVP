@@ -36,4 +36,8 @@ public class ItemDefinition : ScriptableObject
     public Armor armorTemplate;
 
     public bool IsEquipment => category == ItemCategory.Weapon || category == ItemCategory.Armor;
+
+    [Header("消耗品效果")]
+    public int healAmount;
+    public int stressRelief;
 }

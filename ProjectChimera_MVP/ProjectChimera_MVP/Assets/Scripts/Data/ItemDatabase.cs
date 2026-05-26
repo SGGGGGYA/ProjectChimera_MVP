@@ -26,6 +26,7 @@ public static class ItemDatabase
         potion.description = "使用后恢复 20 点生命";
         potion.category = ItemCategory.Consumable;
         potion.maxStack = 5;
+        potion.healAmount = 20;
         _items["health_potion"] = potion;
 
         if (_items.ContainsKey("stress_herb")) return;
@@ -35,6 +36,7 @@ public static class ItemDatabase
         herb.description = "使用后降低 15 点压力";
         herb.category = ItemCategory.Consumable;
         herb.maxStack = 5;
+        herb.stressRelief = 15;
         _items["stress_herb"] = herb;
     }
 

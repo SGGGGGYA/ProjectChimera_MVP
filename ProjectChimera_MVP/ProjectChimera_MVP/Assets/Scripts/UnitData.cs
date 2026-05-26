@@ -363,6 +363,16 @@ public class UnitData : MonoBehaviour
         SetHighlightState(isSelected ? HighlightState.Highlighted : HighlightState.Normal);
     }
 
+    // ========== 便捷治疗 ==========
+
+    public void HealHP(int amount)
+    {
+        int healed = Mathf.Min(amount, MaxHp - currentHP);
+        currentHP += healed;
+        BattleLog.Add($"[治疗] {unitName} 恢复 {healed} HP ({currentHP}/{MaxHp})");
+        UpdateHPUI();
+    }
+
     // ========== 压力系统 ==========
 
     public void AddStress(int amount)

@@ -47,16 +47,34 @@ public class BattleManager : MonoBehaviour
 
     // 技能输入状态
     private BattleInputState inputState = BattleInputState.Normal;
-    private bool isInTargetingMode;              // 是否处于选目标模式
+    private bool isInTargetingMode;
     private int selectedSkillIndex = -1;
     private SkillData pendingSkill;
     private List<UnitData> validTargets;
     private int targetCycleIndex;
     private UnitData highlightedTarget;
 
+    // 战斗中物品使用
+    private BattleInputState previousState;
+    private List<ItemStack> battleConsumables;
+    private ItemDefinition pendingItemDef;
+    private ItemStack pendingItemStack;
+    private bool isSelectingItem;
+
+    // 战后奖励追踪
+    private int totalExpPerUnit;
+    private int goldEarned;
+    private List<string> lootDisplayLines;
+    private bool rewardCollected;
+
     void Start()
     {
         BattleLog.Clear();
+
+        totalExpPerUnit = 0;
+        goldEarned = 0;
+        lootDisplayLines = null;
+        rewardCollected = false;
 
         // 初始隐藏胜利/失败面板
         if (victoryPanel != null)
@@ -96,13 +114,21 @@ public class BattleManager : MonoBehaviour
             ClearHighlights();
             if (battleOver)
             {
+                // 游戏结束 → 返回主菜单；胜利后必须点"继续"按钮
                 if (battleResult != null && battleResult.Contains("失败"))
                     ReturnToMenu();
-                else
-                    ReturnToMap();
+                return;
             }
             else
                 AttemptRetreat();
+            return;
+        }
+
+        // 等待战利品面板的"继续"按钮
+        if (battleOver && battleResult != null && battleResult.Contains("胜利"))
+        {
+            if (rewardCollected)
+                ReturnToMap();
             return;
         }
 
@@ -154,10 +180,110 @@ public class BattleManager : MonoBehaviour
         {
             EndPlayerTurn();
         }
+        else if (Input.GetKeyDown(KeyCode.Q))
+        {
+            ShowBattleItems();
+        }
+        else if (isSelectingItem)
+        {
+            HandleItemSelectionKeys();
+        }
         else
         {
             CheckSkillKeyPress();
         }
+    }
+
+    // ==================== 战斗物品系统 ====================
+
+    void ShowBattleItems()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        battleConsumables = gm.inventory.FindAll(s =>
+        {
+            var def = ItemDatabase.Get(s.itemId);
+            return def != null && def.category == ItemCategory.Consumable && s.quantity > 0;
+        });
+
+        if (battleConsumables.Count == 0)
+        {
+            BattleLog.Add("[物品] 背包中没有可用消耗品");
+            return;
+        }
+
+        isSelectingItem = true;
+        previousState = inputState;
+        BattleLog.Add("── 选择物品 ──");
+        for (int i = 0; i < battleConsumables.Count; i++)
+        {
+            var def = ItemDatabase.Get(battleConsumables[i].itemId);
+            BattleLog.Add($"[{i+1}] {def?.itemName ?? battleConsumables[i].itemId} x{battleConsumables[i].quantity}");
+        }
+        BattleLog.Add("按数字键选择，按 E 取消");
+    }
+
+    void HandleItemSelectionKeys()
+    {
+        for (int i = 0; i < battleConsumables.Count; i++)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+            {
+                SelectBattleItem(i);
+                return;
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            CancelItemSelection();
+        }
+    }
+
+    void SelectBattleItem(int index)
+    {
+        if (index < 0 || index >= battleConsumables.Count) return;
+
+        pendingItemStack = battleConsumables[index];
+        pendingItemDef = ItemDatabase.Get(pendingItemStack.itemId);
+        if (pendingItemDef == null) return;
+
+        BattleLog.Add($"[物品] 选择: {pendingItemDef.itemName}");
+        isSelectingItem = false;
+
+        // 进入选目标模式（自动选择友方）
+        pendingSkill = MakeItemSkill(pendingItemDef);
+        selectedSkillIndex = -1;
+        inputState = BattleInputState.SkillSelected;
+        EnterTargetingMode();
+    }
+
+    /// <summary>根据物品动态合成一个 SkillData，用于复用选目标系统</summary>
+    SkillData MakeItemSkill(ItemDefinition def)
+    {
+        var skill = new SkillData();
+        skill.skillName = def.itemName;
+        skill.description = def.description;
+        skill.targetType = SkillTargetType.SingleAlly;
+        skill.minUserRank = 0; skill.maxUserRank = 3;
+        skill.canTargetFrontRank = true; skill.canTargetBackRank = true;
+
+        if (def.healAmount > 0)
+            skill.commands = new List<Command> { new HealCommand { baseHeal = def.healAmount } };
+        else if (def.stressRelief > 0)
+            skill.commands = new List<Command> { new ConsumeResourceCommand { resourceType = ConsumeResourceCommand.ResourceType.Stress, amount = -def.stressRelief } };
+        else
+            skill.commands = new List<Command> { new HealCommand { baseHeal = 20 } };
+
+        return skill;
+    }
+
+    void CancelItemSelection()
+    {
+        isSelectingItem = false;
+        pendingItemDef = null;
+        pendingItemStack = null;
+        BattleLog.Add("[物品] 取消选择");
     }
 
     void HandleSkillSelectedInput()
@@ -417,6 +543,7 @@ public class BattleManager : MonoBehaviour
     void ExitTargetingMode()
     {
         isInTargetingMode = false;
+        isSelectingItem = false;
         foreach (var u in playerUnits)
         {
             if (u != null)
@@ -431,6 +558,8 @@ public class BattleManager : MonoBehaviour
         inputState = BattleInputState.Normal;
         selectedSkillIndex = -1;
         pendingSkill = null;
+        pendingItemDef = null;
+        pendingItemStack = null;
     }
 
     void CycleTarget()
@@ -450,8 +579,17 @@ public class BattleManager : MonoBehaviour
         UnitData target = validTargets != null && targetCycleIndex < validTargets.Count
             ? validTargets[targetCycleIndex] : null;
 
-        // 在 ExitTargetingMode 清空 pendingSkill 之前，先保存引用
         SkillData skillToExecute = pendingSkill;
+
+        // 若为物品，先消耗再执行
+        if (pendingItemStack != null)
+        {
+            GameManager.Instance.RemoveItem(pendingItemStack.itemId, 1);
+            BattleLog.Add($"[物品] 使用了 {pendingItemDef?.itemName ?? pendingItemStack.itemId}");
+            pendingItemStack = null;
+            pendingItemDef = null;
+        }
+
         ExitTargetingMode();
         ExecuteSkill(attacker, skillToExecute, target);
 
@@ -682,10 +820,27 @@ public class BattleManager : MonoBehaviour
             if (enemyUnits.Contains(target))
             {
                 int expReward = 50 * target.level;
+                totalExpPerUnit += expReward;
                 foreach (var pu in playerUnits)
                 {
                     if (pu.currentHP > 0)
                         pu.GainExp(expReward);
+                }
+
+                int goldDrop = Random.Range(3, 10);
+                goldEarned += goldDrop;
+                if (lootDisplayLines == null) lootDisplayLines = new List<string>();
+                lootDisplayLines.Add($"{target.unitName}: {goldDrop}金");
+
+                if (target.unitName.Contains("萨满") && Random.value < 0.5f)
+                {
+                    GameManager.Instance.AddItem("stress_herb", 1);
+                    lootDisplayLines.Add($"  掉落: 镇静草药");
+                }
+                else if (Random.value < 0.3f)
+                {
+                    GameManager.Instance.AddItem("health_potion", 1);
+                    lootDisplayLines.Add($"  掉落: 生命药水");
                 }
             }
 
@@ -697,7 +852,8 @@ public class BattleManager : MonoBehaviour
                 battleOver = true;
                 battleResult = "胜利！🎉";
                 BattleLog.Add("【胜利】战斗胜利！");
-                ShowVictoryPanel();
+                GameManager.Instance.gold += goldEarned;
+                ShowRewardPanel();
             }
             else if (allPlayerDead)
             {
@@ -709,35 +865,169 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void ShowVictoryPanel()
+    void ShowRewardPanel()
     {
-        if (victoryPanel != null)
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
         {
-            victoryPanel.SetActive(true);
-            if (victoryTitleText != null)
+            var cgo = new GameObject("RewardCanvas", typeof(RectTransform));
+            cgo.layer = 5;
+            canvas = cgo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            cgo.AddComponent<UnityEngine.UI.CanvasScaler>();
+            cgo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        }
+
+        var root = new GameObject("RewardPanel", typeof(RectTransform));
+        root.layer = 5;
+        root.transform.SetParent(canvas.transform, false);
+        var rt = root.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(500, 400);
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+
+        var bg = new GameObject("BG", typeof(RectTransform));
+        bg.layer = 5;
+        bg.transform.SetParent(root.transform, false);
+        var bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
+        var bgImg = bg.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0.08f, 0.08f, 0.12f, 0.97f);
+
+        // Title
+        var titleGo = new GameObject("Title", typeof(RectTransform));
+        titleGo.layer = 5; titleGo.transform.SetParent(root.transform, false);
+        var titleRt = titleGo.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0.5f, 1); titleRt.anchorMax = new Vector2(0.5f, 1);
+        titleRt.pivot = new Vector2(0.5f, 1); titleRt.sizeDelta = new Vector2(400, 36);
+        titleRt.anchoredPosition = new Vector2(0, -12);
+        titleGo.AddComponent<CanvasRenderer>();
+        var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
+        titleTmp.text = "🎉 战斗胜利！🎉";
+        titleTmp.fontSize = 22; titleTmp.alignment = TextAlignmentOptions.Center;
+        titleTmp.color = Color.yellow; UIFonts.Apply(titleTmp);
+
+        // Content area
+        float yOff = -50;
+        foreach (var pu in playerUnits)
+        {
+            var line = new GameObject("ExpLine", typeof(RectTransform));
+            line.layer = 5; line.transform.SetParent(root.transform, false);
+            var lrt = line.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0.5f, 1); lrt.anchorMax = new Vector2(0.5f, 1);
+            lrt.pivot = new Vector2(0.5f, 1); lrt.sizeDelta = new Vector2(400, 20);
+            lrt.anchoredPosition = new Vector2(0, yOff);
+            line.AddComponent<CanvasRenderer>();
+            var tmp = line.AddComponent<TextMeshProUGUI>();
+            tmp.text = $"{pu.unitName}  Lv.{pu.level}  经验 +{totalExpPerUnit}  ({pu.currentExp}/{pu.ExpToNextLevel})";
+            tmp.fontSize = 14; tmp.alignment = TextAlignmentOptions.Left;
+            tmp.color = Color.white; UIFonts.Apply(tmp);
+            yOff -= 22;
+        }
+
+        // Gold line
+        var goldLine = new GameObject("GoldLine", typeof(RectTransform));
+        goldLine.layer = 5; goldLine.transform.SetParent(root.transform, false);
+        var glRt = goldLine.GetComponent<RectTransform>();
+        glRt.anchorMin = new Vector2(0.5f, 1); glRt.anchorMax = new Vector2(0.5f, 1);
+        glRt.pivot = new Vector2(0.5f, 1); glRt.sizeDelta = new Vector2(400, 20);
+        glRt.anchoredPosition = new Vector2(0, yOff);
+        goldLine.AddComponent<CanvasRenderer>();
+        var glTmp = goldLine.AddComponent<TextMeshProUGUI>();
+        glTmp.text = $"💰 金币 +{goldEarned}  (持有: {GameManager.Instance.gold})";
+        glTmp.fontSize = 15; glTmp.alignment = TextAlignmentOptions.Left;
+        glTmp.color = Color.yellow; UIFonts.Apply(glTmp);
+        yOff -= 22;
+
+        // Loot lines
+        if (lootDisplayLines != null)
+        {
+            foreach (var lineText in lootDisplayLines)
             {
-                victoryTitleText.text = battleResult;
-                victoryTitleText.color = battleResult.Contains("胜利") ? Color.yellow : Color.red;
+                var line = new GameObject("LootLine", typeof(RectTransform));
+                line.layer = 5; line.transform.SetParent(root.transform, false);
+                var lrt = line.GetComponent<RectTransform>();
+                lrt.anchorMin = new Vector2(0.5f, 1); lrt.anchorMax = new Vector2(0.5f, 1);
+                lrt.pivot = new Vector2(0.5f, 1); lrt.sizeDelta = new Vector2(400, 18);
+                lrt.anchoredPosition = new Vector2(0, yOff);
+                line.AddComponent<CanvasRenderer>();
+                var tmp = line.AddComponent<TextMeshProUGUI>();
+                tmp.text = "  " + lineText;
+                tmp.fontSize = 13; tmp.alignment = TextAlignmentOptions.Left;
+                tmp.color = Color.cyan; UIFonts.Apply(tmp);
+                yOff -= 20;
             }
         }
+
+        // Continue button
+        var btnGo = new GameObject("ContinueBtn", typeof(RectTransform));
+        btnGo.layer = 5; btnGo.transform.SetParent(root.transform, false);
+        var btnRt = btnGo.GetComponent<RectTransform>();
+        btnRt.anchorMin = new Vector2(0.5f, 0); btnRt.anchorMax = new Vector2(0.5f, 0);
+        btnRt.pivot = new Vector2(0.5f, 0.5f); btnRt.sizeDelta = new Vector2(160, 40);
+        btnRt.anchoredPosition = new Vector2(0, 30);
+        btnGo.AddComponent<CanvasRenderer>();
+        var btnImg = btnGo.AddComponent<UnityEngine.UI.Image>();
+        btnImg.color = new Color(0.2f, 0.4f, 0.2f);
+        var btnLbl = new GameObject("Label", typeof(RectTransform));
+        btnLbl.layer = 5; btnLbl.transform.SetParent(btnGo.transform, false);
+        var lblRt = btnLbl.GetComponent<RectTransform>();
+        lblRt.anchorMin = Vector2.zero; lblRt.anchorMax = Vector2.one;
+        lblRt.offsetMin = Vector2.zero; lblRt.offsetMax = Vector2.zero;
+        var lblTmp = btnLbl.AddComponent<TextMeshProUGUI>();
+        lblTmp.text = "继续"; lblTmp.fontSize = 16; lblTmp.alignment = TextAlignmentOptions.Center;
+        lblTmp.color = Color.white; UIFonts.Apply(lblTmp);
+        var btn = btnGo.AddComponent<UnityEngine.UI.Button>();
+        btn.onClick.AddListener(() => { rewardCollected = true; });
+
+        // Disable old victory panel if exists
+        if (victoryPanel != null) victoryPanel.SetActive(false);
     }
 
     void ShowGameOverPanel()
     {
-        string msg = "⚰️ 全军覆没 ⚰️\n按 R 返回主菜单";
-        if (victoryPanel != null)
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
         {
-            victoryPanel.SetActive(true);
-            if (victoryTitleText != null)
-            {
-                victoryTitleText.text = msg;
-                victoryTitleText.color = Color.red;
-            }
+            var cgo = new GameObject("GameOverCanvas", typeof(RectTransform));
+            cgo.layer = 5;
+            canvas = cgo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            cgo.AddComponent<UnityEngine.UI.CanvasScaler>();
+            cgo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
         }
-        else
-        {
-            BattleLog.Add(msg);
-        }
+
+        var root = new GameObject("GameOverPanel", typeof(RectTransform));
+        root.layer = 5; root.transform.SetParent(canvas.transform, false);
+        var rt = root.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(400, 200);
+        rt.anchorMin = new Vector2(0.5f, 0.5f); rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f); rt.anchoredPosition = Vector2.zero;
+
+        var bg = new GameObject("BG", typeof(RectTransform));
+        bg.layer = 5; bg.transform.SetParent(root.transform, false);
+        var bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
+        var bgImg = bg.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0.15f, 0.05f, 0.05f, 0.95f);
+
+        var titleGo = new GameObject("Title", typeof(RectTransform));
+        titleGo.layer = 5; titleGo.transform.SetParent(root.transform, false);
+        var titleRt = titleGo.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0.5f, 0.5f); titleRt.anchorMax = new Vector2(0.5f, 0.5f);
+        titleRt.pivot = new Vector2(0.5f, 0.5f); titleRt.sizeDelta = new Vector2(300, 80);
+        titleRt.anchoredPosition = Vector2.zero;
+        titleGo.AddComponent<CanvasRenderer>();
+        var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
+        titleTmp.text = "⚰️ 全军覆没 ⚰️\n按 R 返回主菜单";
+        titleTmp.fontSize = 20; titleTmp.alignment = TextAlignmentOptions.Center;
+        titleTmp.color = Color.red; UIFonts.Apply(titleTmp);
+
+        if (victoryPanel != null) victoryPanel.SetActive(false);
     }
 
     public UnitData GetFirstAlive(List<UnitData> units)
