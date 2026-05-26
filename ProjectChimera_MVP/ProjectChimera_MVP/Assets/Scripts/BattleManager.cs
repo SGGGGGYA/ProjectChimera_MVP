@@ -55,7 +55,6 @@ public class BattleManager : MonoBehaviour
     private UnitData highlightedTarget;
 
     // 战斗中物品使用
-    private BattleInputState previousState;
     private List<ItemStack> battleConsumables;
     private ItemDefinition pendingItemDef;
     private ItemStack pendingItemStack;
@@ -172,6 +171,12 @@ public class BattleManager : MonoBehaviour
 
     void HandleNormalInput()
     {
+        if (isSelectingItem)
+        {
+            HandleItemSelectionKeys();
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.Space))
         {
             DoBasicAttack();
@@ -183,10 +188,6 @@ public class BattleManager : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Q))
         {
             ShowBattleItems();
-        }
-        else if (isSelectingItem)
-        {
-            HandleItemSelectionKeys();
         }
         else
         {
@@ -214,7 +215,6 @@ public class BattleManager : MonoBehaviour
         }
 
         isSelectingItem = true;
-        previousState = inputState;
         BattleLog.Add("── 选择物品 ──");
         for (int i = 0; i < battleConsumables.Count; i++)
         {
@@ -327,7 +327,9 @@ public class BattleManager : MonoBehaviour
         {
             if (IsValidTarget(clickedUnit))
             {
-                targetCycleIndex = validTargets.IndexOf(clickedUnit);
+                int idx = validTargets != null ? validTargets.IndexOf(clickedUnit) : -1;
+                if (idx < 0) return;
+                targetCycleIndex = idx;
                 ConfirmTarget();
                 return;
             }
@@ -576,7 +578,7 @@ public class BattleManager : MonoBehaviour
         UnitData attacker = TurnManager.Instance.currentUnit;
         if (attacker == null || pendingSkill == null) return;
 
-        UnitData target = validTargets != null && targetCycleIndex < validTargets.Count
+        UnitData target = validTargets != null && targetCycleIndex >= 0 && targetCycleIndex < validTargets.Count
             ? validTargets[targetCycleIndex] : null;
 
         SkillData skillToExecute = pendingSkill;
