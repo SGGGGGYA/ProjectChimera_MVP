@@ -26,6 +26,45 @@ public class UnitData : MonoBehaviour
 
     [Header("特质")]
     public List<Quirk> quirks = new List<Quirk>();
+    public Dictionary<string, int> quirkCooldowns = new Dictionary<string, int>();
+
+    public bool HasQuirk(string id)
+    {
+        return quirks.Exists(q => q.id == id);
+    }
+
+    public bool IsQuirkOnCooldown(string id)
+    {
+        return quirkCooldowns.ContainsKey(id) && quirkCooldowns[id] > 0;
+    }
+
+    public void SetQuirkCooldown(string id, int turns)
+    {
+        quirkCooldowns[id] = turns;
+    }
+
+    public void TickQuirkCooldowns()
+    {
+        var keys = new List<string>(quirkCooldowns.Keys);
+        foreach (var key in keys)
+        {
+            if (quirkCooldowns[key] > 0)
+            {
+                quirkCooldowns[key]--;
+                if (quirkCooldowns[key] == 0)
+                {
+                    RemoveQuirkModifiers(key);
+                    quirkCooldowns.Remove(key);
+                }
+            }
+        }
+    }
+
+    public void RemoveQuirkModifiers(string quirkId)
+    {
+        string source = "quirk_" + quirkId;
+        modifiers.RemoveAll(m => m.source == source);
+    }
 
     // ========== GetFinalStat 管线 ==========
 
@@ -38,6 +77,7 @@ public class UnitData : MonoBehaviour
         { StatType.DEF, AttributeTarget.DEF },
         { StatType.STR, AttributeTarget.STR },
         { StatType.INT, AttributeTarget.INT },
+        { StatType.CRT, AttributeTarget.CRT },
     };
 
     static AttributeTarget ToAttributeTarget(StatType stat)
@@ -173,6 +213,7 @@ public class UnitData : MonoBehaviour
     public int SPD => GetFinalStat(StatType.SPD);
     public int ACC => GetFinalStat(StatType.ACC);
     public int DOD => GetFinalStat(StatType.DOD);
+    public int CRT => GetFinalStat(StatType.CRT);
 
     [Header("阵型")]
     public int rank; // 0=前排(近敌), 3=后排(远敌)
@@ -217,6 +258,7 @@ public class UnitData : MonoBehaviour
 
     [Header("技能")]
     public List<SkillData> skills = new List<SkillData>();
+    public Dictionary<string, int> skillCooldowns = new Dictionary<string, int>();
 
     [Header("状态效果")]
     public List<StatusEffect> statusEffects = new List<StatusEffect>();
@@ -371,6 +413,9 @@ public class UnitData : MonoBehaviour
         currentHP += healed;
         BattleLog.Add($"[治疗] {unitName} 恢复 {healed} HP ({currentHP}/{MaxHp})");
         UpdateHPUI();
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioKeys.SFX_HEAL);
+        VFXManager.FlashHeal(this);
     }
 
     // ========== 压力系统 ==========
@@ -464,6 +509,13 @@ public class UnitData : MonoBehaviour
         return baseCoeff * breakdownMod;
     }
 
+    public bool IsSkillOnCooldown(SkillData skill)
+    {
+        return skillCooldowns != null &&
+               skillCooldowns.ContainsKey(skill.skillName) &&
+               skillCooldowns[skill.skillName] > 0;
+    }
+
     // ========== 经验升级 ==========
 
     public static int GetExpForLevel(int lvl)
@@ -497,6 +549,8 @@ public class UnitData : MonoBehaviour
             currentHP = MaxHp;
             UpdateHPUI();
             BattleLog.Add($"🎉 {unitName} 升级到 {level} 级！HP 全恢复");
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_LEVEL_UP);
         }
     }
 }

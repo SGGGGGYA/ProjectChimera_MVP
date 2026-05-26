@@ -206,13 +206,20 @@ public class BattleSetup : MonoBehaviour
             Debug.Log("[BattleSetup] 无 GameManager，使用默认玩家数据");
         }
 
-        // 敌人数据：满编4人战队
-        enemyTeamData = GetFullEnemyTeam();
-        Debug.Log($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} ({enemyTeamData.Count}人)");
-
-        // 分配玩家站位 (0,1=前排近敌, 2,3=后排)
-        for (int i = 0; i < playerTeamData.Count; i++)
-            playerTeamData[i].rank = i;
+        // 敌人数据：优先使用 GameManager 预设的模板，否则随机生成
+        if (GameManager.Instance != null &&
+            GameManager.Instance.enemyTeamData != null &&
+            GameManager.Instance.enemyTeamData.Count > 0)
+        {
+            enemyTeamData = GameManager.Instance.enemyTeamData;
+            GameManager.Instance.enemyTeamData = null;
+            Debug.Log($"[BattleSetup] 使用 GameManager 预设敌人数据 ({enemyTeamData.Count}人)");
+        }
+        else
+        {
+            enemyTeamData = GetFullEnemyTeam();
+            Debug.Log($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} ({enemyTeamData.Count}人)");
+        }
 
         // 创建所有玩家单位（前排在中间、后排两侧）
         List<UnitData> playerUnits = new List<UnitData>();
@@ -286,12 +293,7 @@ public class BattleSetup : MonoBehaviour
     static Vector3 FormationPosition(bool isPlayer, int rank)
     {
         float x;
-        if (isPlayer)
-            x = -2f + rank * 1.2f; // 玩家从左到右: rank0=-0.8, rank1=0.4, rank2=1.6, rank3=2.8 → 修正
-        else
-            x = 2f - rank * 1.2f;  // 敌人从右到左: rank0=2.0, rank1=0.8, rank2=-0.4, rank3=-1.6 → 修正
-
-        // 重新设计：前排靠中线(0)，后排远离中线(±3)
+        // 前排靠中线(0)，后排远离中线(±3)
         if (isPlayer)
             x = (rank <= 1) ? -1.2f - rank * 0.6f : -2.8f - (rank - 2) * 0.6f;
         else
@@ -435,12 +437,17 @@ public class BattleSetup : MonoBehaviour
         unit.equippedArmor = data.equippedArmor;
         unit.quirks = data.quirks ?? new List<Quirk>();
 
+        // 初始化 AI 状态
+        unit.skillCooldowns = new Dictionary<string, int>();
+        EnemyAIEngine.Reset(unit);
+
         // UnitClickDetector 已在预制体上，无需 AddComponent
 
-        // ==================== 血条 + 压力条 ====================
+        // ==================== 血条 + 压力条 + 状态图标 ====================
 
         CreateHPBar(unit);
         CreateStressBar(unit);
+        unit.gameObject.AddComponent<StatusIconFollower>();
         return unit;
     }
 

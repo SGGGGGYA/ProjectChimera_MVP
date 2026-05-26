@@ -1,7 +1,7 @@
 using System;
 
 public enum ModifierType { Add, Mul }
-public enum AttributeTarget { MaxHP, SPD, ACC, DOD, DEF, STR, INT }
+public enum AttributeTarget { MaxHP, SPD, ACC, DOD, DEF, STR, INT, CRT }
 
 [System.Serializable]
 public struct AttributeModifier

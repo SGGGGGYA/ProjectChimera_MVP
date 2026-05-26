@@ -40,6 +40,8 @@ public static class StressManager
             unit.stressEventHistory.RemoveAt(0);
 
         BattleLog.Add($"[压力] {unit.unitName} 压力 +{actual} (原始{rawAmount}, 抗性{unit.stressResistRate * 100:F0}%) ({unit.stress}/{config.maxStress})");
+        // 触发 OnStress 特质
+        QuirkTriggerSystem.CheckTriggers(unit, QuirkTriggerType.OnStress);
     }
 
     public static void ReduceStress(UnitData unit, int amount)
@@ -119,6 +121,9 @@ public static class StressManager
             unit.stress = config.afflictionResetValue;
 
         BattleLog.Add($"<color={(isVirtue ? "#44ff44" : "#ff4444")}>【{(isVirtue ? "美德" : "折磨")}】{unit.unitName} 触发 [{entry.displayName}]！{entry.description}</color>");
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(isVirtue ? AudioKeys.SFX_VIRTUE : AudioKeys.SFX_BREAKDOWN);
 
         ApplyBreakdownEffect(unit, entry, bm);
     }

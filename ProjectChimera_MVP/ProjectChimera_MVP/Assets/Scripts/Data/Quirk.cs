@@ -1,5 +1,17 @@
 using System.Collections.Generic;
 
+public enum QuirkTriggerType
+{
+    BattleStart,
+    TurnStart,
+    OnHit,
+    OnTakeDamage,
+    OnKill,
+    OnStress,
+    OnHeal,
+    OnDeathsDoor
+}
+
 [System.Serializable]
 public class QuirkEffect
 {
@@ -16,6 +28,12 @@ public class Quirk
     public bool isPositive;
     public bool isLocked;
     public List<QuirkEffect> effects = new List<QuirkEffect>();
+
+    public QuirkTriggerType triggerType = QuirkTriggerType.BattleStart;
+    public float procChance = 1f;
+    public string targetStat;
+    public int effectValue;
+    public int duration;
 
     public int GetFlatMod(StatType stat)
     {
@@ -34,4 +52,14 @@ public class Quirk
                 sum += e.amount * 0.01f;
         return sum;
     }
+}
+
+/// <summary>
+/// 传递给 QuirkTriggerSystem.CheckTriggers 的上下文数据
+/// </summary>
+public class QuirkContext
+{
+    public UnitData source;
+    public int intValue;
+    public bool valueModified;
 }

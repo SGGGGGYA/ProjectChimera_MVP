@@ -27,6 +27,8 @@ public static class ItemDatabase
         potion.category = ItemCategory.Consumable;
         potion.maxStack = 5;
         potion.healAmount = 20;
+        potion.buyPrice = 80;
+        potion.sellPrice = 40;
         _items["health_potion"] = potion;
 
         if (_items.ContainsKey("stress_herb")) return;
@@ -37,7 +39,62 @@ public static class ItemDatabase
         herb.category = ItemCategory.Consumable;
         herb.maxStack = 5;
         herb.stressRelief = 15;
+        herb.buyPrice = 120;
+        herb.sellPrice = 60;
         _items["stress_herb"] = herb;
+
+        if (_items.ContainsKey("iron_sword")) return;
+        var ironSword = ScriptableObject.CreateInstance<ItemDefinition>();
+        ironSword.itemId = "iron_sword";
+        ironSword.itemName = "铁剑";
+        ironSword.description = "一把普通的铁剑\nSTR+3";
+        ironSword.category = ItemCategory.Weapon;
+        ironSword.maxStack = 1;
+        ironSword.buyPrice = 120;
+        ironSword.sellPrice = 60;
+        ironSword.weaponBaseAttack = 5;
+        ironSword.weaponTemplate = new Weapon { id = "iron_sword", equipmentName = "铁剑",
+            mods = new List<StatMod>{ new StatMod{stat=StatType.STR, amount=3} } };
+        _items["iron_sword"] = ironSword;
+
+        if (_items.ContainsKey("leather_armor")) return;
+        var leatherArmor = ScriptableObject.CreateInstance<ItemDefinition>();
+        leatherArmor.itemId = "leather_armor";
+        leatherArmor.itemName = "皮甲";
+        leatherArmor.description = "轻便的皮甲\nDEF+2";
+        leatherArmor.category = ItemCategory.Armor;
+        leatherArmor.maxStack = 1;
+        leatherArmor.buyPrice = 100;
+        leatherArmor.sellPrice = 50;
+        leatherArmor.armorTemplate = new Armor { id = "leather_armor", equipmentName = "皮甲",
+            mods = new List<StatMod>{ new StatMod{stat=StatType.DEF, amount=2} } };
+        _items["leather_armor"] = leatherArmor;
+
+        if (_items.ContainsKey("life_ring")) return;
+        var lifeRing = ScriptableObject.CreateInstance<ItemDefinition>();
+        lifeRing.itemId = "life_ring";
+        lifeRing.itemName = "生命戒指";
+        lifeRing.description = "蕴含生命能量的戒指\nMaxHP+15";
+        lifeRing.category = ItemCategory.Weapon;
+        lifeRing.maxStack = 1;
+        lifeRing.buyPrice = 200;
+        lifeRing.sellPrice = 100;
+        lifeRing.weaponTemplate = new Weapon { id = "life_ring", equipmentName = "生命戒指",
+            mods = new List<StatMod>{ new StatMod{stat=StatType.MaxHP, amount=15} } };
+        _items["life_ring"] = lifeRing;
+
+        if (_items.ContainsKey("speed_boots")) return;
+        var speedBoots = ScriptableObject.CreateInstance<ItemDefinition>();
+        speedBoots.itemId = "speed_boots";
+        speedBoots.itemName = "速度之靴";
+        speedBoots.description = "轻快的靴子\nSPD+3";
+        speedBoots.category = ItemCategory.Armor;
+        speedBoots.maxStack = 1;
+        speedBoots.buyPrice = 180;
+        speedBoots.sellPrice = 90;
+        speedBoots.armorTemplate = new Armor { id = "speed_boots", equipmentName = "速度之靴",
+            mods = new List<StatMod>{ new StatMod{stat=StatType.SPD, amount=3} } };
+        _items["speed_boots"] = speedBoots;
     }
 
     public static ItemDefinition Get(string id)

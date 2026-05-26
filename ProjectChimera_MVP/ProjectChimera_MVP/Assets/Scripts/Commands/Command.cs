@@ -53,7 +53,19 @@ public class DealDamageCommand : Command
             var aliveEnemies = ctx.allEnemies.FindAll(e => e.currentHP > 0);
             foreach (var enemy in aliveEnemies)
             {
-                int dmg = ComputeDamage(ctx.attacker, enemy);
+                bool hit = CombatSystem.IsHit(ctx.attacker, enemy);
+                if (!hit)
+                {
+                    BattleLog.Add($"{ctx.attacker.unitName} 攻击 {enemy.unitName} —— <color=#aaaaaa>未命中！</color>");
+                    continue;
+                }
+                bool crit = CombatSystem.IsCrit(ctx.attacker, enemy);
+                int dmg = CombatSystem.CalculateDamage(ctx.attacker, enemy, BuildSkillData());
+                if (crit)
+                {
+                    dmg = Mathf.RoundToInt(dmg * 1.5f);
+                    BattleLog.Add($"<color=#ffdd00>暴击！</color> {ctx.attacker.unitName} 对 {enemy.unitName} 造成致命一击！");
+                }
                 ctx.battleManager.DealDamage(ctx.attacker, enemy, dmg);
             }
         }
@@ -64,7 +76,20 @@ public class DealDamageCommand : Command
                 result.skipRemainingCommands = true;
                 return result;
             }
-            int dmg = ComputeDamage(ctx.attacker, ctx.selectedTarget);
+
+            if (!CombatSystem.IsHit(ctx.attacker, ctx.selectedTarget))
+            {
+                BattleLog.Add($"{ctx.attacker.unitName} 攻击 {ctx.selectedTarget.unitName} —— <color=#aaaaaa>未命中！</color>");
+                return result;
+            }
+
+            bool isCrit = CombatSystem.IsCrit(ctx.attacker, ctx.selectedTarget);
+            int dmg = CombatSystem.CalculateDamage(ctx.attacker, ctx.selectedTarget, BuildSkillData());
+            if (isCrit)
+            {
+                dmg = Mathf.RoundToInt(dmg * 1.5f);
+                BattleLog.Add($"<color=#ffdd00>暴击！</color> {ctx.attacker.unitName} 对 {ctx.selectedTarget.unitName} 造成致命一击！");
+            }
             ctx.battleManager.DealDamage(ctx.attacker, ctx.selectedTarget, dmg);
             if (ctx.selectedTarget.currentHP <= 0)
                 result.skipRemainingCommands = true;
@@ -73,14 +98,14 @@ public class DealDamageCommand : Command
         return result;
     }
 
-    int ComputeDamage(UnitData attacker, UnitData target)
+    SkillData BuildSkillData()
     {
-        float raw = baseDamage + attacker.weaponAttack + attacker.GetEffectiveSTR() * strScaling + attacker.AGI * agiScaling;
-        float strCoeff = 1f + (attacker.GetEffectiveSTR() - 5) * 0.05f;
-        int dmg = Mathf.Max(1, Mathf.RoundToInt(raw * strCoeff - target.GetEffectiveDEF()));
-        float markMult = target.GetIncomingDamageMultiplier();
-        dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * markMult));
-        return dmg;
+        return new SkillData
+        {
+            baseDamage = this.baseDamage,
+            strScaling = this.strScaling,
+            agiScaling = this.agiScaling
+        };
     }
 }
 
@@ -181,6 +206,11 @@ public class HealCommand : Command
         ctx.selectedTarget.currentHP += healAmount;
         ctx.selectedTarget.UpdateHPUI();
         BattleLog.Add($"[治疗] {ctx.attacker.unitName} 为 {ctx.selectedTarget.unitName} 恢复了 {healAmount} 点生命");
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioKeys.SFX_HEAL);
+        VFXManager.FlashHeal(ctx.selectedTarget);
+        // 触发 OnHeal 特质
+        QuirkTriggerSystem.CheckTriggers(ctx.selectedTarget, QuirkTriggerType.OnHeal);
 
         return result;
     }
@@ -203,6 +233,8 @@ public class ShieldCommand : Command
 
         ctx.selectedTarget.shieldHP += shieldAmount;
         BattleLog.Add($"[护盾] {ctx.attacker.unitName} 为 {ctx.selectedTarget.unitName} 附加了 {shieldAmount} 点护盾");
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioKeys.SFX_SHIELD);
 
         return result;
     }

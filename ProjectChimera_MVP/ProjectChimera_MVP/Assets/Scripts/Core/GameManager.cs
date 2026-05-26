@@ -8,7 +8,8 @@ public enum GameState
 {
     WorldMap,
     Battle,
-    Menu
+    Menu,
+    Dungeon
 }
 
 [System.Serializable]
@@ -70,6 +71,9 @@ public class GameManager : MonoBehaviour
     public List<ItemStack> inventory = new List<ItemStack>();
     public int gold = 100;
 
+    [Header("商店")]
+    public ShopData shopData = new ShopData();
+
     [Header("中文字体（拖入 Unifont_Universal_SDF）")]
     public TMPro.TMP_FontAsset chineseFont;
 
@@ -78,6 +82,11 @@ public class GameManager : MonoBehaviour
 
     [Header("职业定义")]
     public List<ClassDefinition> classDefinitions = new List<ClassDefinition>();
+
+    [Header("地牢系统")]
+    public DungeonSession dungeonSession = new DungeonSession();
+
+    public Dictionary<int, List<UnitBattleData>> enemyTemplates = new Dictionary<int, List<UnitBattleData>>();
 
     void Awake()
     {
@@ -116,8 +125,47 @@ public class GameManager : MonoBehaviour
             invGO.AddComponent<UIInventoryController>();
         }
 
+        if (FindObjectOfType<UIFormationController>() == null)
+        {
+            var fcGO = new GameObject("UIFormationController");
+            DontDestroyOnLoad(fcGO);
+            fcGO.AddComponent<UIFormationController>();
+        }
+
+        if (FindObjectOfType<UIPauseMenu>() == null)
+        {
+            var pmGO = new GameObject("UIPauseMenu");
+            DontDestroyOnLoad(pmGO);
+            pmGO.AddComponent<UIPauseMenu>();
+        }
+
+        if (FindObjectOfType<UIRecruitController>() == null)
+        {
+            var rcGO = new GameObject("UIRecruitController");
+            DontDestroyOnLoad(rcGO);
+            rcGO.AddComponent<UIRecruitController>();
+        }
+
+        if (FindObjectOfType<UIDungeonMapController>() == null)
+        {
+            var dgo = new GameObject("UIDungeonMapController");
+            DontDestroyOnLoad(dgo);
+            dgo.AddComponent<UIDungeonMapController>();
+        }
+
+        if (dungeonSession.isInDungeon)
+        {
+            var ctrl = FindObjectOfType<UIDungeonMapController>();
+            if (ctrl != null) ctrl.Open();
+        }
+
+        InitEnemyTemplates();
+
         if (playerTeamData == null || playerTeamData.Count == 0)
             CreateTestData();
+
+        if (shopData == null) shopData = new ShopData();
+        shopData.RefreshShop();
     }
 
     void InitClassDefinitions()
@@ -135,11 +183,12 @@ public class GameManager : MonoBehaviour
         {
             new SkillData
             {
-                skillName = "盾牌猛击", description = "伤害+眩晕",
+                skillName = "盾牌猛击", description = "伤害+眩晕+击退",
                 baseDamage = 12, strScaling = 0.8f,
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 0, maxUserRank = 1,
                 canTargetFrontRank = true, canTargetBackRank = false,
+                targetShift = 1,
                 aiCategory = SkillEffectType.Stun,
                 effectValue = 1, effectDuration = 1,
                 commands = new List<Command>
@@ -243,11 +292,12 @@ public class GameManager : MonoBehaviour
         {
             new SkillData
             {
-                skillName = "嗜血斩击", description = "伤害+自损10%HP+吸血50%",
+                skillName = "嗜血斩击", description = "冲锋+伤害+自损10%HP+吸血50%",
                 baseDamage = 18,
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 0, maxUserRank = 1,
                 canTargetFrontRank = true, canTargetBackRank = true,
+                selfShift = -1,
                 aiCategory = SkillEffectType.BloodthirstyStrike,
                 commands = new List<Command>
                 {
@@ -270,10 +320,11 @@ public class GameManager : MonoBehaviour
             },
             new SkillData
             {
-                skillName = "殊死一搏", description = "血量越低伤害越高,最高+100%",
+                skillName = "殊死一搏", description = "冲锋+血量越低伤害越高,最高+100%",
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 0, maxUserRank = 3,
                 canTargetFrontRank = true, canTargetBackRank = true,
+                targetShift = 1, selfShift = -1,
                 aiCategory = SkillEffectType.DesperateStrike,
                 commands = new List<Command>
                 {
@@ -294,10 +345,11 @@ public class GameManager : MonoBehaviour
         {
             new SkillData
             {
-                skillName = "精神冲击", description = "精神伤害+15压力",
+                skillName = "精神冲击", description = "精神伤害+15压力+击退",
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 2, maxUserRank = 3,
                 canTargetFrontRank = true, canTargetBackRank = true,
+                targetShift = 1,
                 aiCategory = SkillEffectType.MindShock,
                 commands = new List<Command>
                 {
@@ -320,10 +372,11 @@ public class GameManager : MonoBehaviour
             },
             new SkillData
             {
-                skillName = "禁忌知识", description = "高额精神伤害,自身+25压力",
+                skillName = "禁忌知识", description = "高额精神伤害+击退,自身+25压力",
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 2, maxUserRank = 3,
                 canTargetFrontRank = true, canTargetBackRank = true,
+                targetShift = 1,
                 aiCategory = SkillEffectType.ForbiddenKnowledge,
                 commands = new List<Command>
                 {
@@ -345,11 +398,12 @@ public class GameManager : MonoBehaviour
         {
             new SkillData
             {
-                skillName = "重劈", description = "用力砍下去",
+                skillName = "重劈", description = "用力砍下去+击退",
                 baseDamage = 8, strScaling = 0.6f,
                 targetType = SkillTargetType.SingleEnemy,
                 minUserRank = 0, maxUserRank = 1,
                 canTargetFrontRank = true, canTargetBackRank = false,
+                targetShift = 1,
                 aiCategory = SkillEffectType.DirectDamage,
                 commands = new List<Command>
                 {
@@ -483,6 +537,122 @@ public class GameManager : MonoBehaviour
         return classDefinitions.Find(c => c.unitName == unitName);
     }
 
+    // ========== 敌人模板系统 ==========
+
+    void InitEnemyTemplates()
+    {
+        enemyTemplates.Clear();
+
+        enemyTemplates[0] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+            MakeGoblinArcher(2), MakeGoblinArcher(3)
+        };
+        enemyTemplates[1] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeWolf(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        enemyTemplates[2] = new List<UnitBattleData>
+        {
+            MakeWolf(0), MakeWolf(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        enemyTemplates[3] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+            MakeGoblinWarrior(2), MakeGoblinShaman(3)
+        };
+        enemyTemplates[10] = new List<UnitBattleData>
+        {
+            MakeEliteGoblinWarrior(0), MakeGoblinWarrior(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        enemyTemplates[11] = new List<UnitBattleData>
+        {
+            MakeWolf(0), MakeEliteWolf(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        enemyTemplates[100] = new List<UnitBattleData>
+        {
+            MakeBossWarrior(0), MakeBossWarrior(1),
+            MakeBossShaman(2), MakeBossArcher(3)
+        };
+    }
+
+    UnitBattleData MakeGoblinWarrior(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
+        weaponAttack = 3, level = 2,
+        equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+    };
+    UnitBattleData MakeGoblinArcher(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林弓手", isPlayer = false, rank = rank,
+        VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
+        weaponAttack = 2, level = 2,
+        equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+    };
+    UnitBattleData MakeGoblinShaman(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林萨满", isPlayer = false, rank = rank,
+        VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8,
+        weaponAttack = 0, level = 2,
+        equippedWeapon = MakeTestWeapon("spirit_staff", "法杖", StatType.INT, 3),
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+    };
+    UnitBattleData MakeWolf(int rank) => new UnitBattleData
+    {
+        unitName = "野狼", isPlayer = false, rank = rank,
+        VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1,
+        weaponAttack = 2, level = 2,
+        equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 2),
+        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 2)
+    };
+    UnitBattleData MakeEliteGoblinWarrior(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        VIT = 5, STR = 13, DEF = 6, AGI = 5, INT = 2,
+        weaponAttack = 5, level = 4,
+        equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
+        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
+    };
+    UnitBattleData MakeEliteWolf(int rank) => new UnitBattleData
+    {
+        unitName = "野狼", isPlayer = false, rank = rank,
+        VIT = 7, STR = 12, DEF = 5, AGI = 14, INT = 1,
+        weaponAttack = 4, level = 4,
+        equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 3),
+        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 3)
+    };
+    UnitBattleData MakeBossWarrior(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        VIT = 10, STR = 16, DEF = 8, AGI = 6, INT = 3,
+        weaponAttack = 8, level = 6,
+        equippedWeapon = MakeTestWeapon("great_axe", "巨斧", StatType.STR, 5),
+        equippedArmor = MakeTestArmor("plate_armor", "铠甲", 4)
+    };
+    UnitBattleData MakeBossShaman(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林萨满", isPlayer = false, rank = rank,
+        VIT = 6, STR = 6, DEF = 4, AGI = 5, INT = 12,
+        weaponAttack = 2, level = 6,
+        equippedWeapon = MakeTestWeapon("arcane_staff", "奥术法杖", StatType.INT, 6),
+        equippedArmor = MakeTestArmor("robe", "法袍", 3)
+    };
+    UnitBattleData MakeBossArcher(int rank) => new UnitBattleData
+    {
+        unitName = "哥布林弓手", isPlayer = false, rank = rank,
+        VIT = 4, STR = 10, DEF = 4, AGI = 12, INT = 3,
+        weaponAttack = 5, level = 6,
+        equippedWeapon = MakeTestWeapon("long_bow", "长弓", StatType.AGI, 4),
+        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 3)
+    };
+
     Weapon MakeTestWeapon(string id, string name, StatType stat, int amount) => new Weapon
     {
         id = id, equipmentName = name,
@@ -550,84 +720,111 @@ public class GameManager : MonoBehaviour
     public void StartBattle()
     {
         Debug.Log("[GameManager] StartBattle() 被调用");
-        
-        string sceneName = "BattleScene";
-        bool canLoad = Application.CanStreamedLevelBeLoaded(sceneName);
-        Debug.Log($"[GameManager] 场景 '{sceneName}' 是否可以加载: {canLoad}");
-        
-        if (!canLoad)
-        {
-            Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！请在 File > Build Settings 中添加该场景。");
-            return;
-        }
-
         int template = Random.Range(0, 2);
-        if (template == 0)
-        {
-            enemyTeamData = new List<UnitBattleData>
-            {
-                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 0,
-                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
-                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
-                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 1,
-                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
-                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
-                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 2,
-                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
-                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 3,
-                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) }
-            };
-        }
-        else
-        {
-            enemyTeamData = new List<UnitBattleData>
-            {
-                new UnitBattleData { unitName = "哥布林战士", isPlayer = false, rank = 0,
-                    VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1, weaponAttack = 3, level = 2,
-                    equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
-                new UnitBattleData { unitName = "野狼", isPlayer = false, rank = 1,
-                    VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1, weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 2),
-                    equippedArmor = MakeTestArmor("thick_hide", "厚皮", 2) },
-                new UnitBattleData { unitName = "哥布林弓手", isPlayer = false, rank = 2,
-                    VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2, weaponAttack = 2, level = 2,
-                    equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) },
-                new UnitBattleData { unitName = "哥布林萨满", isPlayer = false, rank = 3,
-                    VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8, weaponAttack = 0, level = 2,
-                    equippedWeapon = MakeTestWeapon("spirit_staff", "法杖", StatType.INT, 3),
-                    equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) }
-            };
-        }
-
+        enemyTeamData = CreateEnemyTeamFromTemplate(template);
         foreach (var u in enemyTeamData)
         {
             u.maxHp = u.ComputeMaxHP();
             u.currentHP = u.maxHp;
         }
+        LoadBattleScene();
+    }
 
+    public void StartDungeonBattle(int templateId)
+    {
+        if (!enemyTemplates.ContainsKey(templateId))
+        {
+            Debug.LogError($"[GameManager] 找不到敌人模板 {templateId}，使用默认模板");
+            templateId = 0;
+        }
+        enemyTeamData = CreateEnemyTeamFromTemplate(templateId);
+        foreach (var u in enemyTeamData)
+        {
+            u.maxHp = u.ComputeMaxHP();
+            u.currentHP = u.maxHp;
+        }
         currentState = GameState.Battle;
-        Debug.Log("[GameManager] 准备加载 BattleScene...");
+        LoadBattleScene();
+    }
+
+    public void StartBossBattle(int bossId)
+    {
+        StartDungeonBattle(bossId);
+    }
+
+    List<UnitBattleData> CreateEnemyTeamFromTemplate(int templateId)
+    {
+        if (enemyTemplates.ContainsKey(templateId))
+        {
+            var template = enemyTemplates[templateId];
+            var result = new List<UnitBattleData>();
+            foreach (var src in template)
+                result.Add(CloneUnitBattleData(src));
+            return result;
+        }
+        return new List<UnitBattleData>();
+    }
+
+    UnitBattleData CloneUnitBattleData(UnitBattleData src)
+    {
+        return new UnitBattleData
+        {
+            unitName = src.unitName,
+            VIT = src.VIT, STR = src.STR, DEF = src.DEF, AGI = src.AGI, INT = src.INT,
+            weaponAttack = src.weaponAttack, level = src.level, currentExp = src.currentExp,
+            stress = src.stress, isPlayer = src.isPlayer, rank = src.rank,
+            currentHP = src.currentHP, maxHp = src.maxHp,
+            equippedWeapon = CloneEquipment(src.equippedWeapon) as Weapon,
+            equippedArmor = CloneEquipment(src.equippedArmor) as Armor,
+            quirks = new List<Quirk>(src.quirks ?? new List<Quirk>())
+        };
+    }
+
+    Equipment CloneEquipment(Equipment src)
+    {
+        if (src == null) return null;
+        Equipment dst = src is Weapon ? new Weapon() : new Armor();
+        dst.id = src.id;
+        dst.equipmentName = src.equipmentName;
+        dst.mods = new List<StatMod>(src.mods);
+        return dst;
+    }
+
+    void LoadBattleScene()
+    {
+        string sceneName = "BattleScene";
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
+            return;
+        }
+        currentState = GameState.Battle;
         SceneManager.LoadScene("BattleScene", LoadSceneMode.Single);
-        Debug.Log("[GameManager] LoadScene 已调用");
     }
 
     public void ReturnToWorldMap()
     {
+        if (dungeonSession.isInDungeon)
+        {
+            SaveGame();
+            currentState = GameState.WorldMap;
+            string sceneName = "WorldMap";
+            if (!Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
+                return;
+            }
+            SceneManager.LoadScene("WorldMap", LoadSceneMode.Single);
+            return;
+        }
+
         // 返回前自动存档
         SaveGame();
 
-        string sceneName = "WorldMap";
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        string sceneName2 = "WorldMap";
+        if (!Application.CanStreamedLevelBeLoaded(sceneName2))
         {
-            Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！请在 File > Build Settings 中添加该场景。");
+            Debug.LogError($"[GameManager] 场景 '{sceneName2}' 不在 Build Settings 中！请在 File > Build Settings 中添加该场景。");
             return;
         }
 
@@ -669,7 +866,7 @@ public class GameManager : MonoBehaviour
 
     // ========== 存档系统 ==========
 
-    /// <summary>保存游戏（队伍数据 + 地图位置 + 背包）</summary>
+    /// <summary>保存游戏（队伍数据 + 地图位置 + 背包 + 地牢状态）</summary>
     public void SaveGame()
     {
         SaveData data = new SaveData();
@@ -678,6 +875,7 @@ public class GameManager : MonoBehaviour
         data.squadY = savedSquadPos.y;
         data.inventory = inventory;
         data.gold = gold;
+        data.dungeonFloor = dungeonSession.isInDungeon ? dungeonSession.currentFloor : 0;
         SaveManager.Save(data);
     }
 
@@ -695,6 +893,12 @@ public class GameManager : MonoBehaviour
         {
             if (u.maxHp <= 0) u.maxHp = u.ComputeMaxHP();
             if (u.currentHP <= 0) u.currentHP = u.maxHp;
+        }
+        if (data.dungeonFloor > 0 && dungeonSession != null)
+        {
+            dungeonSession.currentFloor = data.dungeonFloor;
+            dungeonSession.currentMap = DungeonGenerator.GenerateMap(data.dungeonFloor, data.dungeonFloor);
+            dungeonSession.isInDungeon = true;
         }
         Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件, 金币{gold}");
         return true;

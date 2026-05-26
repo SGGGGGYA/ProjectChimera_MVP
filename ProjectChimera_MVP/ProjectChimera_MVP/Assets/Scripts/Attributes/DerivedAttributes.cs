@@ -9,6 +9,7 @@ public struct DerivedAttributes
     public int ACC;
     public int DOD;
     public int DEF;
+    public int CRT;
 
     public DerivedAttributes(PrimaryAttributes primary, int baseDefense, int classBaseHP, int classBaseSPD)
     {
@@ -17,5 +18,6 @@ public struct DerivedAttributes
         ACC = 80 + primary.AGI * 2;
         DOD = Mathf.RoundToInt(primary.AGI * 1.5f);
         DEF = baseDefense;
+        CRT = primary.AGI / 10;
     }
 }

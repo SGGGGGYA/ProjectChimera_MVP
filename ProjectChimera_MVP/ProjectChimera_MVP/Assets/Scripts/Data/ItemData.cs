@@ -31,11 +31,16 @@ public class ItemDefinition : ScriptableObject
     public ItemCategory category;
     public int maxStack = 1;
     public string iconPath;
+    public int weaponBaseAttack;
 
     public Weapon weaponTemplate;
     public Armor armorTemplate;
 
     public bool IsEquipment => category == ItemCategory.Weapon || category == ItemCategory.Armor;
+
+    [Header("价格")]
+    public int buyPrice = 50;
+    public int sellPrice = 25;
 
     [Header("消耗品效果")]
     public int healAmount;

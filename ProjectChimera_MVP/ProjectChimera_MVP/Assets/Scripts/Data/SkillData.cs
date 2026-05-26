@@ -70,4 +70,8 @@ public class SkillData
     public SkillEffectType aiCategory;
     public float effectValue;
     public int effectDuration;
+
+    [Header("AI冷却")]
+    [Tooltip("使用后需要冷却的回合数 (0=无冷却)")]
+    public int cooldown = 0;
 }

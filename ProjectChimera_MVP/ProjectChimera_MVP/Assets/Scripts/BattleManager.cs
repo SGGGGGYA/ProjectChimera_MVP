@@ -60,6 +60,10 @@ public class BattleManager : MonoBehaviour
     private ItemStack pendingItemStack;
     private bool isSelectingItem;
 
+    // 目标指示器
+    private GameObject targetArrow;
+    private Canvas targetArrowCanvas;
+
     // 战后奖励追踪
     private int totalExpPerUnit;
     private int goldEarned;
@@ -75,9 +79,20 @@ public class BattleManager : MonoBehaviour
         lootDisplayLines = null;
         rewardCollected = false;
 
+        VFXManager.Initialize(this);
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioKeys.BGM_BATTLE);
+
         // 初始隐藏胜利/失败面板
         if (victoryPanel != null)
             victoryPanel.SetActive(false);
+
+        // 自动生成回合数 UI
+        if (FindObjectOfType<UIRoundCounter>() == null)
+        {
+            var rcGO = new GameObject("UIRoundCounter");
+            rcGO.AddComponent<UIRoundCounter>();
+        }
 
         // 自动寻找 UI 控制器
         if (skillBarController == null)
@@ -85,6 +100,12 @@ public class BattleManager : MonoBehaviour
 
         // 订阅单位点击事件（鼠标选目标 + 面板触发）
         UnitClickDetector.OnUnitClicked += OnUnitClicked;
+
+        // 触发 BattleStart 特质
+        foreach (var unit in playerUnits)
+            QuirkTriggerSystem.CheckTriggers(unit, QuirkTriggerType.BattleStart);
+        foreach (var unit in enemyUnits)
+            QuirkTriggerSystem.CheckTriggers(unit, QuirkTriggerType.BattleStart);
 
         foreach (var unit in playerUnits)
         {
@@ -313,6 +334,7 @@ public class BattleManager : MonoBehaviour
     void OnDestroy()
     {
         UnitClickDetector.OnUnitClicked -= OnUnitClicked;
+        if (targetArrow != null) Destroy(targetArrow);
     }
 
     /// <summary>鼠标点击单位时触发：选目标 / 选中取消 Toggle</summary>
@@ -519,26 +541,108 @@ public class BattleManager : MonoBehaviour
 
         if (validTargets == null) return;
 
+        // 重置所有 selectCircle（先将它们全部禁用）
+        foreach (var u in enemyUnits)
+        {
+            if (u != null && u.selectCircle != null)
+            {
+                var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.enabled = false;
+            }
+        }
+
         // 当前预选的目标
         UnitData currentHighlight = (targetCycleIndex >= 0 && targetCycleIndex < validTargets.Count)
             ? validTargets[targetCycleIndex] : null;
 
-        // 敌方：合法目标 → Normal/Highlighted，非法目标 → Dimmed
+        // 敌方：合法目标 → 显示 cyan 光圈，非法目标 → Dimmed
         foreach (var u in enemyUnits)
         {
             if (u == null) continue;
             if (validTargets.Contains(u))
             {
                 if (u == currentHighlight)
+                {
                     u.SetHighlightState(UnitData.HighlightState.Highlighted);
+                    if (u.selectCircle != null)
+                    {
+                        var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                        if (sr != null) { sr.enabled = true; sr.color = Color.yellow; }
+                    }
+                    ShowTargetArrow(u);
+                }
                 else
+                {
                     u.SetHighlightState(UnitData.HighlightState.Normal);
+                    if (u.selectCircle != null)
+                    {
+                        var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                        if (sr != null) { sr.enabled = true; sr.color = Color.cyan; }
+                    }
+                }
             }
             else
             {
                 u.SetHighlightState(UnitData.HighlightState.Dimmed);
             }
         }
+
+        // 玩家方合法目标也显示光圈（技能选队友时）
+        foreach (var u in playerUnits)
+        {
+            if (u == null || u.selectCircle == null) continue;
+            if (validTargets.Contains(u))
+            {
+                var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    sr.enabled = true;
+                    sr.color = (u == currentHighlight) ? Color.yellow : Color.cyan;
+                }
+            }
+        }
+    }
+
+    void ShowTargetArrow(UnitData target)
+    {
+        if (target == null) return;
+        if (targetArrow == null) CreateTargetArrow();
+
+        Vector3 worldPos = target.transform.position + Vector3.up * 1.8f;
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+        targetArrow.GetComponent<RectTransform>().position = screenPos;
+        targetArrow.SetActive(true);
+    }
+
+    void CreateTargetArrow()
+    {
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            var cgo = new GameObject("TargetArrowCanvas", typeof(RectTransform));
+            cgo.layer = 5;
+            targetArrowCanvas = cgo.AddComponent<Canvas>();
+            targetArrowCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            cgo.AddComponent<UnityEngine.UI.CanvasScaler>();
+            cgo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        }
+        else
+        {
+            targetArrowCanvas = canvas;
+        }
+
+        targetArrow = new GameObject("TargetArrow", typeof(RectTransform));
+        targetArrow.layer = 5;
+        targetArrow.transform.SetParent(targetArrowCanvas.transform, false);
+        var rt = targetArrow.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(32, 32);
+        var tmp = targetArrow.AddComponent<TMPro.TextMeshProUGUI>();
+        tmp.text = "▼";
+        tmp.fontSize = 28;
+        tmp.alignment = TMPro.TextAlignmentOptions.Center;
+        tmp.color = Color.yellow;
+        UIFonts.Apply(tmp);
+        targetArrow.SetActive(false);
     }
 
     /// <summary>退出选目标模式：清除所有覆盖层</summary>
@@ -556,7 +660,25 @@ public class BattleManager : MonoBehaviour
             if (u != null)
                 u.SetHighlightState(UnitData.HighlightState.Normal);
         }
+        // 禁用所有 selectCircle
+        foreach (var u in enemyUnits)
+        {
+            if (u != null && u.selectCircle != null)
+            {
+                var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.enabled = false;
+            }
+        }
+        foreach (var u in playerUnits)
+        {
+            if (u != null && u.selectCircle != null)
+            {
+                var sr = u.selectCircle.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.enabled = false;
+            }
+        }
         ClearHighlights();
+        if (targetArrow != null) targetArrow.SetActive(false);
         inputState = BattleInputState.Normal;
         selectedSkillIndex = -1;
         pendingSkill = null;
@@ -677,6 +799,17 @@ public class BattleManager : MonoBehaviour
 
     // ==================== 基础攻击 ====================
 
+    string GetHitSoundKey(UnitData attacker)
+    {
+        if (attacker == null) return AudioKeys.SFX_SWORD_HIT;
+        string name = attacker.unitName.ToLower();
+        if (name.Contains("游侠") || name.Contains("弓箭") || name.Contains("射手"))
+            return AudioKeys.SFX_ARROW_HIT;
+        if (name.Contains("萨满") || name.Contains("术士") || name.Contains("法师") || name.Contains("学者"))
+            return AudioKeys.SFX_MAGIC_HIT;
+        return AudioKeys.SFX_SWORD_HIT;
+    }
+
     void DoBasicAttack()
     {
         UnitData attacker = TurnManager.Instance.currentUnit;
@@ -702,10 +835,25 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        int rawDmg = attacker.GetEffectiveSTR() + attacker.weaponAttack;
-        float strCoeff = attacker.GetStrengthCoefficient();
-        int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - target.GetEffectiveDEF()));
-        DealDamage(attacker, target, damage);
+        if (!CombatSystem.IsHit(attacker, target))
+        {
+            BattleLog.Add($"{attacker.unitName} 攻击 {target.unitName} —— <color=#aaaaaa>未命中！</color>");
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_MISS);
+            if (!battleOver)
+                EndPlayerTurn();
+            return;
+        }
+
+        bool isCrit = CombatSystem.IsCrit(attacker, target);
+        int damage = CombatSystem.CalculateDamage(attacker, target, new SkillData { baseDamage = 0, strScaling = 0, agiScaling = 0 });
+        if (isCrit)
+        {
+            damage = Mathf.RoundToInt(damage * 1.5f);
+            BattleLog.Add($"<color=#ffdd00>暴击！</color> {attacker.unitName} 对 {target.unitName} 造成致命一击！");
+        }
+
+        DealDamage(attacker, target, damage, isCrit);
 
         if (!battleOver)
             EndPlayerTurn();
@@ -718,7 +866,7 @@ public class BattleManager : MonoBehaviour
 
     // ==================== 公共伤害方法 ====================
 
-    public void DealDamage(UnitData attacker, UnitData target, int damage)
+    public void DealDamage(UnitData attacker, UnitData target, int damage, bool isCrit = false)
     {
         StatusEffect protect = target.GetStatus(StatusType.Protected);
         if (protect != null)
@@ -738,8 +886,19 @@ public class BattleManager : MonoBehaviour
             target.shieldHP -= absorbed;
             damage -= absorbed;
             BattleLog.Add($"[护盾] {target.unitName} 的护盾吸收了 {absorbed} 点伤害");
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_SHIELD);
             if (target.shieldHP <= 0 && damage > 0)
                 BattleLog.Add($"[护盾] {target.unitName} 的护盾破碎了");
+        }
+
+        // 触发 OnTakeDamage 特质（允许修改伤害）
+        if (damage > 0)
+        {
+            var ctx = new QuirkContext { source = attacker, intValue = damage };
+            QuirkTriggerSystem.CheckTriggers(target, QuirkTriggerType.OnTakeDamage, ctx);
+            if (ctx.valueModified)
+                damage = ctx.intValue;
         }
 
         target.currentHP -= damage;
@@ -748,6 +907,18 @@ public class BattleManager : MonoBehaviour
         {
             BattleLog.Add($"{attacker.unitName} 对 {target.unitName} 造成 {damage} 点伤害！");
             StressManager.AddStress(target, StressManager.config.onTakeDamage, StressTag.Combat);
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_STRESS);
+            // 触发 OnHit 特质（攻击命中时）
+            QuirkTriggerSystem.CheckTriggers(attacker, QuirkTriggerType.OnHit);
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(isCrit ? AudioKeys.SFX_CRIT : GetHitSoundKey(attacker));
+            if (isCrit)
+                VFXManager.ScreenShake(0.4f, 0.25f);
+            else
+                VFXManager.ScreenShake(0.15f, 0.1f);
+            VFXManager.FlashDamage(target);
+            VFXManager.PlayHitEffect(target.transform.position + Vector3.up * 0.5f);
         }
 
         // 死亡之门判定（仅玩家单位）
@@ -757,7 +928,11 @@ public class BattleManager : MonoBehaviour
             target.isOnDeathsDoor = true;
             target.UpdateHPUI();
             BattleLog.Add($"<color=red>{target.unitName} 进入死亡之门！</color>");
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_DEATHS_DOOR);
             StressManager.AddStress(target, 20, StressTag.Combat);
+            // 触发 OnDeathsDoor 特质
+            QuirkTriggerSystem.CheckTriggers(target, QuirkTriggerType.OnDeathsDoor);
         }
         else if (target.isPlayer && target.currentHP <= 0 && target.isOnDeathsDoor)
         {
@@ -808,6 +983,8 @@ public class BattleManager : MonoBehaviour
         if (target.currentHP <= 0)
         {
             BattleLog.Add($"{target.unitName} 被击败！");
+            // 触发 OnKill 特质
+            QuirkTriggerSystem.CheckTriggers(attacker, QuirkTriggerType.OnKill);
 
             var allies = enemyUnits.Contains(target) ? playerUnits : enemyUnits;
             foreach (var ally in allies)
@@ -856,6 +1033,11 @@ public class BattleManager : MonoBehaviour
                 BattleLog.Add("【胜利】战斗胜利！");
                 GameManager.Instance.gold += goldEarned;
                 ShowRewardPanel();
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlaySFX(AudioKeys.SFX_VICTORY);
+                    AudioManager.Instance.StartCoroutine(DelayedBGMChange(AudioKeys.BGM_MAP, 1.5f));
+                }
             }
             else if (allPlayerDead)
             {
@@ -863,6 +1045,8 @@ public class BattleManager : MonoBehaviour
                 battleResult = "失败... 💀";
                 BattleLog.Add("【失败】全军覆没！");
                 ShowGameOverPanel();
+                if (AudioManager.Instance != null)
+                    AudioManager.Instance.PlaySFX(AudioKeys.SFX_DEFEAT);
             }
         }
     }
@@ -1066,6 +1250,13 @@ public class BattleManager : MonoBehaviour
         target.position = originalPos;
     }
 
+    IEnumerator DelayedBGMChange(string bgmKey, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(bgmKey);
+    }
+
     void AttemptRetreat()
     {
         if (battleOver) return;
@@ -1092,6 +1283,8 @@ public class BattleManager : MonoBehaviour
         if (allSucceed)
         {
             BattleLog.Add("【撤退成功】全队成功撤离！");
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_RETREAT);
             foreach (var unit in alive)
                 StressManager.AddStress(unit, 15, StressTag.Combat);
             ReturnToMap();

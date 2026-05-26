@@ -9,7 +9,7 @@ public class TurnManager : MonoBehaviour
     public List<UnitData> allUnits = new List<UnitData>();
     private List<UnitData> turnOrder = new List<UnitData>();
     private int currentTurnIndex = 0;
-    private int roundCount = 1;
+    public int roundCount = 1;
 
     [Header("当前回合")]
     public UnitData currentUnit;
@@ -27,6 +27,8 @@ public class TurnManager : MonoBehaviour
         allUnits.Clear();
         allUnits.AddRange(playerUnits);
         allUnits.AddRange(enemyUnits);
+
+        EnemyAIEngine.ResetAll();
 
         CalculateTurnOrder();
         StartRound();
@@ -143,9 +145,14 @@ public class TurnManager : MonoBehaviour
             currentUnit.stress = Mathf.Max(0, currentUnit.stress + StressManager.config.lowStressRecovery);
         }
 
+        // 触发 TurnStart 特质
+        QuirkTriggerSystem.CheckTriggers(currentUnit, QuirkTriggerType.TurnStart);
+
         isPlayerTurn = currentUnit.isPlayer;
 
         BattleLog.Add($"回合: {currentUnit.unitName}");
+        if (isPlayerTurn && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioKeys.SFX_UI_CLICK, 0.5f);
 
         if (!isPlayerTurn)
         {
@@ -157,6 +164,7 @@ public class TurnManager : MonoBehaviour
     {
         Debug.Log($"[TurnManager] {currentUnit.unitName} 结束回合");
         currentUnit.TickStatusEffects();
+        currentUnit.TickQuirkCooldowns();
         StressManager.TickBreakdown(currentUnit);
         currentTurnIndex++;
         StartNextTurn();
@@ -164,94 +172,20 @@ public class TurnManager : MonoBehaviour
 
     IEnumerator EnemyTurn()
     {
-        Debug.Log($"[TurnManager] {currentUnit.unitName} 正在思考...");
-        yield return new WaitForSeconds(1f);
-
         BattleManager bm = FindObjectOfType<BattleManager>();
-        if (bm != null)
+        if (bm == null)
         {
-            MentalState mentalState = currentUnit.GetMentalState();
-
-            // Afflicted: 50%概率随机攻击本方或对方
-            if (mentalState == MentalState.Afflicted && Random.value < 0.5f)
-            {
-                var allTargets = new List<UnitData>();
-                allTargets.AddRange(bm.playerUnits.FindAll(u => u.currentHP > 0));
-                allTargets.AddRange(bm.enemyUnits.FindAll(u => u.currentHP > 0 && u != currentUnit));
-                if (allTargets.Count > 0)
-                {
-                    UnitData randomTarget = allTargets[Random.Range(0, allTargets.Count)];
-                    int dmg = Mathf.Max(1, currentUnit.GetEffectiveSTR() + currentUnit.weaponAttack - randomTarget.GetEffectiveDEF());
-                    BattleLog.Add($"<color=red>[崩溃 AI] {currentUnit.unitName} 失控攻击了 {randomTarget.unitName}！</color>");
-                    bm.DealDamage(currentUnit, randomTarget, dmg);
-                    yield return new WaitForSeconds(0.5f);
-                    EndTurn();
-                    yield break;
-                }
-            }
-
-            // 检查嘲讽
-            UnitData target = null;
-            StatusEffect taunt = currentUnit.GetStatus(StatusType.Taunt);
-            if (taunt != null)
-            {
-                target = bm.playerUnits.Find(u => u.unitName == taunt.sourceName && u.currentHP > 0);
-                if (target != null)
-                    BattleLog.Add($"[嘲讽] {currentUnit.unitName} 被嘲讽，强制攻击 {target.unitName}");
-            }
-
-            UnitData chosenTarget = null;
-            SkillData chosenSkill = null;
-
-            switch (currentUnit.unitName)
-            {
-                case "哥布林萨满":
-                    ExecuteShamanAI(bm, out chosenTarget, out chosenSkill);
-                    break;
-
-                case "野狼":
-                    ExecuteWolfAI(bm, out chosenTarget, out chosenSkill);
-                    break;
-
-                default:
-                    chosenTarget = target ?? GetBestPlayerTarget(bm);
-                    if (currentUnit.skills.Count > 0 && Random.value < 0.5f)
-                    {
-                        var usableSkills = currentUnit.skills.FindAll(s =>
-                            currentUnit.rank >= s.minUserRank && currentUnit.rank <= s.maxUserRank);
-                        if (usableSkills.Count > 0)
-                            chosenSkill = usableSkills[Random.Range(0, usableSkills.Count)];
-                    }
-                    break;
-            }
-
-            if (chosenTarget != null)
-            {
-                if (chosenSkill != null)
-                {
-                    if (chosenSkill.targetType == SkillTargetType.SingleEnemy &&
-                        !RankCanHit(currentUnit, chosenTarget, chosenSkill))
-                    {
-                        chosenTarget = GetBestPlayerTarget(bm);
-                    }
-                    BattleLog.Add($"[敌人] {currentUnit.unitName} 使用 [{chosenSkill.skillName}]");
-                    bm.ExecuteSkill(currentUnit, chosenSkill, chosenTarget);
-                }
-                else
-                {
-                    int rawDmg = currentUnit.GetEffectiveSTR() + currentUnit.weaponAttack;
-                    float strCoeff = currentUnit.GetStrengthCoefficient();
-                    int damage = Mathf.Max(1, Mathf.RoundToInt(rawDmg * strCoeff - chosenTarget.GetEffectiveDEF()));
-                    bm.DealDamage(currentUnit, chosenTarget, damage);
-                }
-            }
+            EndTurn();
+            yield break;
         }
 
-        yield return new WaitForSeconds(0.5f);
-        EndTurn();
+        yield return EnemyAIEngine.ExecuteTurn(currentUnit, bm, this, () =>
+        {
+            EndTurn();
+        });
     }
 
-    bool RankCanHit(UnitData attacker, UnitData target, SkillData skill)
+    public bool RankCanHit(UnitData attacker, UnitData target, SkillData skill)
     {
         bool targetIsFront = target.rank <= 1;
         if (targetIsFront && !skill.canTargetFrontRank) return false;
@@ -259,105 +193,17 @@ public class TurnManager : MonoBehaviour
         return true;
     }
 
-    UnitData GetBestPlayerTarget(BattleManager bm)
+    public UnitData GetBestPlayerTarget(BattleManager bm)
     {
         var players = bm.playerUnits.Where(u => u.currentHP > 0).ToList();
-        // 优先打前排
         var front = players.Where(u => u.rank <= 1).ToList();
         if (front.Count > 0) return front[Random.Range(0, front.Count)];
         return players.Count > 0 ? players[0] : null;
     }
 
-    bool SkillUsable(UnitData unit, SkillData skill)
+    public bool SkillUsable(UnitData unit, SkillData skill)
     {
         return skill != null && unit.rank >= skill.minUserRank && unit.rank <= skill.maxUserRank;
-    }
-
-    // ==================== 哥布林萨满 AI ====================
-
-    void ExecuteShamanAI(BattleManager bm, out UnitData target, out SkillData skill)
-    {
-        target = null;
-        skill = null;
-
-        var allies = bm.enemyUnits.Where(u => u.currentHP > 0 && u != currentUnit).ToList();
-
-        // 情况1：有队友血量低于50% → 治疗血最少的
-        var lowHpAlly = allies.Where(u => (float)u.currentHP / u.MaxHp < 0.5f)
-                              .OrderBy(u => (float)u.currentHP / u.MaxHp)
-                              .FirstOrDefault();
-        if (lowHpAlly != null)
-        {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Heal && SkillUsable(currentUnit, s));
-            target = lowHpAlly;
-            if (skill != null) return;
-        }
-
-        // 情况2a：有玩家压力超过50 → 恐吓施加压力
-        var highStressPlayer = bm.playerUnits.Where(u => u.currentHP > 0 && u.stress >= 50)
-                                              .OrderByDescending(u => u.stress)
-                                              .FirstOrDefault();
-        if (highStressPlayer != null)
-        {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Stress && SkillUsable(currentUnit, s));
-            if (skill != null)
-            {
-                target = highStressPlayer;
-                return;
-            }
-        }
-
-        // 情况2b：给随机队友上护盾
-        if (allies.Count > 0)
-        {
-            skill = currentUnit.skills.Find(s => s.aiCategory == SkillEffectType.Shield && SkillUsable(currentUnit, s));
-            if (skill != null)
-            {
-                target = allies[Random.Range(0, allies.Count)];
-                return;
-            }
-        }
-
-        // 情况3：火球打血最少玩家
-        skill = currentUnit.skills.Find(s => SkillUsable(currentUnit, s) &&
-                                          (s.aiCategory == SkillEffectType.DirectDamage || s.skillName == "火球术"));
-        var players = bm.playerUnits.Where(u => u.currentHP > 0)
-                                    .OrderBy(u => u.currentHP)
-                                    .ToList();
-        target = players.FirstOrDefault();
-    }
-
-    // ==================== 野狼 AI ====================
-
-    void ExecuteWolfAI(BattleManager bm, out UnitData target, out SkillData skill)
-    {
-        target = null;
-        skill = null;
-
-        // 狼总是用撕咬
-        skill = currentUnit.skills.Find(s => s.skillName == "撕咬");
-        if (skill == null) return;
-
-        // 优先攻击有标记或流血的目标（嗜血被动+20%伤害，在 skill 层面处理）
-        // 如果技能有 Bleed，先找有 Mark/Bleed 的玩家
-        var players = bm.playerUnits.Where(u => u.currentHP > 0).ToList();
-
-        var priorityTarget = players.FirstOrDefault(u =>
-            u.HasStatus(StatusType.Mark) || u.HasStatus(StatusType.Bleed));
-
-        if (priorityTarget != null)
-        {
-            target = priorityTarget;
-            BattleLog.Add($"[嗜血] 野狼感知到 {target.unitName} 身上的伤口，伤害提升20%");
-            // 临时提升技能伤害 20%
-            skill.baseDamage = Mathf.RoundToInt(skill.baseDamage * 1.2f);
-            skill.strScaling *= 1.2f;
-        }
-        else
-        {
-            // 没有标记目标 → 攻击前排（战士优先）
-            target = players.FirstOrDefault(u => u.unitName.Contains("战士")) ?? players[0];
-        }
     }
 
     public bool CanCurrentUnitAct()

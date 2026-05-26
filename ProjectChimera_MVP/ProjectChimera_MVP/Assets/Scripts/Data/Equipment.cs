@@ -32,6 +32,19 @@ public class Equipment
                 sum += m.amount * 0.01f;
         return sum;
     }
+
+    public int GetBuyPrice()
+    {
+        int price = 50;
+        if (string.IsNullOrEmpty(id)) return price;
+        int hash = 17;
+        foreach (char c in id)
+            hash = hash * 31 + c;
+        var rng = new System.Random(hash);
+        foreach (var mod in mods)
+            price += rng.Next(30, 81);
+        return price;
+    }
 }
 
 [System.Serializable]

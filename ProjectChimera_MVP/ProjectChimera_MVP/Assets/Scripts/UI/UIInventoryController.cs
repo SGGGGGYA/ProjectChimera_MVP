@@ -13,7 +13,9 @@ public class UIInventoryController : MonoBehaviour
     public TextMeshProUGUI detailName;
     public TextMeshProUGUI detailDesc;
     public TextMeshProUGUI detailQty;
+    public TextMeshProUGUI detailStats;
     public Button btnEquip;
+    public Button btnUnequip;
     public Button btnUse;
     public Button btnClose;
     public GameObject charSelector;
@@ -133,10 +135,12 @@ public class UIInventoryController : MonoBehaviour
         detailName = MakeLabel(detailObj, "DetailName", 0, 1, -8, "物品详情", 16, Color.white);
         detailDesc = MakeLabel(detailObj, "DetailDesc", 0, 0.5f, 0, "描述", 13, Color.gray);
         detailQty = MakeLabel(detailObj, "DetailQty", 0, 0.3f, 0, "数量: 0", 12, Color.gray);
+        detailStats = MakeLabel(detailObj, "DetailStats", 0, 0.1f, 0, "", 11, Color.green);
 
         btnClose = MakeButton(detailObj, "CloseBtn", 0, 60, "关闭", new Color(0.3f, 0.3f, 0.3f));
-        btnEquip = MakeButton(detailObj, "EquipBtn", -70, 60, "装备", new Color(0.25f, 0.4f, 0.25f));
-        btnUse = MakeButton(detailObj, "UseBtn", 70, 60, "使用", new Color(0.3f, 0.3f, 0.5f));
+        btnEquip = MakeButton(detailObj, "EquipBtn", -90, 60, "装备", new Color(0.25f, 0.4f, 0.25f));
+        btnUnequip = MakeButton(detailObj, "UnequipBtn", 70, 60, "卸下", new Color(0.5f, 0.3f, 0.2f));
+        btnUse = MakeButton(detailObj, "UseBtn", 90, 60, "使用", new Color(0.3f, 0.3f, 0.5f));
 
         var charSelObj = new GameObject("CharSelector", typeof(RectTransform));
         charSelObj.layer = 5;
@@ -165,6 +169,7 @@ public class UIInventoryController : MonoBehaviour
 
         btnClose.onClick.AddListener(Close);
         btnEquip.onClick.AddListener(OnEquipClick);
+        btnUnequip.onClick.AddListener(OnUnequipClick);
         btnUse.onClick.AddListener(OnUseClick);
 
         panel.SetActive(false);
@@ -299,14 +304,154 @@ public class UIInventoryController : MonoBehaviour
         detailDesc.text = def != null ? def.description : "";
         detailQty.text = $"数量: {stack.quantity}";
 
-        btnEquip.gameObject.SetActive(def != null && def.IsEquipment);
+        bool isEquip = def != null && def.IsEquipment;
+        btnEquip.gameObject.SetActive(isEquip);
+        btnUnequip.gameObject.SetActive(isEquip);
         btnUse.gameObject.SetActive(def != null && def.category == ItemCategory.Consumable);
+
+        // 显示装备属性
+        if (detailStats != null)
+        {
+            if (isEquip && def != null)
+            {
+                var sb = new System.Text.StringBuilder();
+                if (def.weaponBaseAttack > 0)
+                    sb.AppendLine($"攻击力 +{def.weaponBaseAttack}");
+                var template = def.weaponTemplate ?? (Equipment)def.armorTemplate;
+                if (template != null)
+                {
+                    foreach (var mod in template.mods)
+                    {
+                        string label = StatLabel(mod.stat);
+                        if (mod.isPercent)
+                            sb.AppendLine($"{label} +{mod.amount}%");
+                        else
+                            sb.AppendLine($"{label} +{mod.amount}");
+                    }
+                }
+                detailStats.text = sb.ToString();
+                detailStats.gameObject.SetActive(true);
+            }
+            else
+            {
+                detailStats.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    static string StatLabel(StatType stat)
+    {
+        switch (stat)
+        {
+            case StatType.VIT: return "体质";
+            case StatType.STR: return "力量";
+            case StatType.AGI: return "敏捷";
+            case StatType.INT: return "智力";
+            case StatType.DEF: return "防御";
+            case StatType.MaxHP: return "生命上限";
+            case StatType.SPD: return "速度";
+            case StatType.ACC: return "命中";
+            case StatType.DOD: return "闪避";
+            case StatType.CRT: return "暴击";
+            default: return stat.ToString();
+        }
     }
 
     public void OnEquipClick()
     {
         if (selectedStack == null) return;
         ShowCharSelector();
+    }
+
+    public void OnUnequipClick()
+    {
+        if (selectedStack == null) return;
+        var def = ItemDatabase.Get(selectedStack.itemId);
+        if (def == null || !def.IsEquipment) return;
+        bool isWeapon = def.weaponTemplate != null;
+        ShowUnequipSelector(isWeapon);
+    }
+
+    void ShowUnequipSelector(bool isWeapon)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        foreach (Transform t in charButtonGrid)
+            Destroy(t.gameObject);
+
+        var csGridRt = charButtonGrid.GetComponent<RectTransform>();
+        csGridRt.sizeDelta = new Vector2(400, 60);
+
+        var csLayout = charButtonGrid.GetComponent<GridLayoutGroup>();
+        if (csLayout != null)
+            csLayout.cellSize = new Vector2(160, 30);
+
+        int count = 0;
+        for (int i = 0; i < gm.playerTeamData.Count; i++)
+        {
+            var unit = gm.playerTeamData[i];
+            bool hasEquipped = isWeapon ? (unit.equippedWeapon != null) : (unit.equippedArmor != null);
+            if (!hasEquipped) continue;
+
+            string slotName = isWeapon ? unit.equippedWeapon.equipmentName : unit.equippedArmor.equipmentName;
+            var go = new GameObject("UnequipBtn", typeof(RectTransform));
+            go.layer = 5;
+            go.transform.SetParent(charButtonGrid, false);
+
+            var tmp = MakeLabel(go, "Label", 0, 0.5f, 0, $"{unit.unitName} ({slotName})", 12, Color.white);
+            var lrt = tmp.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = Vector2.zero;
+            lrt.offsetMax = Vector2.zero;
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.35f, 0.25f, 0.2f);
+
+            int idx = i;
+            bool isW = isWeapon;
+            go.AddComponent<Button>().onClick.AddListener(() => UnequipFrom(idx, isW));
+            count++;
+        }
+
+        if (count == 0)
+        {
+            var go = new GameObject("NoEquipLabel", typeof(RectTransform));
+            go.layer = 5;
+            go.transform.SetParent(charButtonGrid, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(200, 30);
+            MakeLabel(go, "Label", 0, 0.5f, 0, "没有角色装备此部位", 13, Color.gray);
+        }
+
+        charSelector.SetActive(true);
+    }
+
+    void UnequipFrom(int charIdx, bool isWeapon)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        if (charIdx < 0 || charIdx >= gm.playerTeamData.Count) return;
+
+        var unit = gm.playerTeamData[charIdx];
+
+        if (isWeapon && unit.equippedWeapon != null)
+        {
+            gm.AddItem(unit.equippedWeapon.id, 1);
+            unit.equippedWeapon = null;
+            unit.weaponAttack = 0;
+        }
+        else if (!isWeapon && unit.equippedArmor != null)
+        {
+            gm.AddItem(unit.equippedArmor.id, 1);
+            unit.equippedArmor = null;
+        }
+
+        charSelector.SetActive(false);
+        Refresh();
+        detailPanel.SetActive(false);
+        Debug.Log($"[背包] 已卸下 {unit.unitName} 的装备");
     }
 
     public void OnUseClick()
@@ -364,6 +509,10 @@ public class UIInventoryController : MonoBehaviour
         foreach (Transform t in charButtonGrid)
             Destroy(t.gameObject);
 
+        var csLayout = charButtonGrid.GetComponent<GridLayoutGroup>();
+        if (csLayout != null)
+            csLayout.cellSize = new Vector2(100, 30);
+
         for (int i = 0; i < gm.playerTeamData.Count; i++)
         {
             var unit = gm.playerTeamData[i];
@@ -397,6 +546,10 @@ public class UIInventoryController : MonoBehaviour
         foreach (Transform t in charButtonGrid)
             Destroy(t.gameObject);
 
+        var csLayout = charButtonGrid.GetComponent<GridLayoutGroup>();
+        if (csLayout != null)
+            csLayout.cellSize = new Vector2(100, 30);
+
         for (int i = 0; i < gm.playerTeamData.Count; i++)
         {
             var unit = gm.playerTeamData[i];
@@ -427,6 +580,7 @@ public class UIInventoryController : MonoBehaviour
         if (selectedStack == null) return;
         var gm = GameManager.Instance;
         if (gm == null) return;
+        if (charIdx < 0 || charIdx >= gm.playerTeamData.Count) return;
 
         var def = ItemDatabase.Get(selectedStack.itemId);
         if (def == null) return;
@@ -434,9 +588,18 @@ public class UIInventoryController : MonoBehaviour
         var unit = gm.playerTeamData[charIdx];
 
         if (def.weaponTemplate != null)
+        {
+            if (unit.equippedWeapon != null)
+                gm.AddItem(unit.equippedWeapon.id, 1);
             unit.equippedWeapon = CloneEquipment(def.weaponTemplate) as Weapon;
+            unit.weaponAttack = def.weaponBaseAttack;
+        }
         if (def.armorTemplate != null)
+        {
+            if (unit.equippedArmor != null)
+                gm.AddItem(unit.equippedArmor.id, 1);
             unit.equippedArmor = CloneEquipment(def.armorTemplate) as Armor;
+        }
 
         gm.RemoveItem(selectedStack.itemId, 1);
         charSelector.SetActive(false);

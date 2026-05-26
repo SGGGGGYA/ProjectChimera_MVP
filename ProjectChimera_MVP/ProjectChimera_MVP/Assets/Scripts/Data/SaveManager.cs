@@ -15,6 +15,7 @@ public class SaveData
     public string timestamp;
     public List<ItemStack> inventory = new List<ItemStack>();
     public int gold;
+    public int dungeonFloor;
 }
 
 /// <summary>

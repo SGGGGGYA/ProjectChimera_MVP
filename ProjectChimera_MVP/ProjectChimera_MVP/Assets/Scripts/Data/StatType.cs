@@ -8,5 +8,6 @@ public enum StatType
     MaxHP,
     SPD,
     ACC,
-    DOD
+    DOD,
+    CRT
 }
