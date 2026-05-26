@@ -95,7 +95,12 @@ public class BattleManager : MonoBehaviour
         {
             ClearHighlights();
             if (battleOver)
-                ReturnToMap();
+            {
+                if (battleResult != null && battleResult.Contains("失败"))
+                    ReturnToMenu();
+                else
+                    ReturnToMap();
+            }
             else
                 AttemptRetreat();
             return;
@@ -605,8 +610,48 @@ public class BattleManager : MonoBehaviour
             StressManager.AddStress(target, StressManager.config.onTakeDamage, StressTag.Combat);
         }
 
-        if (target.currentHP > 0)
+        // 死亡之门判定（仅玩家单位）
+        if (target.isPlayer && target.currentHP <= 0 && !target.isOnDeathsDoor)
+        {
+            target.currentHP = 0;
+            target.isOnDeathsDoor = true;
+            target.UpdateHPUI();
+            BattleLog.Add($"<color=red>{target.unitName} 进入死亡之门！</color>");
+            StressManager.AddStress(target, 20, StressTag.Combat);
+        }
+        else if (target.isPlayer && target.currentHP <= 0 && target.isOnDeathsDoor)
+        {
+            target.currentHP = 0;
+            float roll = Random.value;
+            bool survived = roll < target.deathsDoorResist;
+            BattleLog.Add($"<color=red>[死亡之门] {target.unitName} 死亡抗性判定: {(survived ? "存活" : "死亡")} (roll:{roll:F2} < resist:{target.deathsDoorResist})</color>");
+            if (survived)
+            {
+                target.currentHP = 1;
+                StressManager.AddStress(target, 20, StressTag.Combat);
+            }
+            else
+            {
+                target.currentHP = 0;
+                target.isOnDeathsDoor = false;
+                BattleLog.Add($"<color=red>{target.unitName} 重伤不治！</color>");
+            }
+            target.UpdateHPUI();
+        }
+        else if (!target.isPlayer && target.currentHP <= 0)
+        {
+            target.currentHP = 0;
+            target.UpdateHPUI();
+        }
+
+        if (damage > 0)
             StressManager.CheckResolve(target, this);
+
+        if (target.currentHP > 0 && target.isOnDeathsDoor)
+        {
+            BattleLog.Add($"{target.unitName} 脱离死亡之门！");
+            target.isOnDeathsDoor = false;
+        }
 
         if (damagePopupPrefab != null)
         {
@@ -622,8 +667,6 @@ public class BattleManager : MonoBehaviour
 
         if (target.currentHP <= 0)
         {
-            target.currentHP = 0;
-            target.UpdateHPUI();
             BattleLog.Add($"{target.unitName} 被击败！");
 
             var allies = enemyUnits.Contains(target) ? playerUnits : enemyUnits;
@@ -661,7 +704,7 @@ public class BattleManager : MonoBehaviour
                 battleOver = true;
                 battleResult = "失败... 💀";
                 BattleLog.Add("【失败】全军覆没！");
-                ShowVictoryPanel();
+                ShowGameOverPanel();
             }
         }
     }
@@ -676,6 +719,24 @@ public class BattleManager : MonoBehaviour
                 victoryTitleText.text = battleResult;
                 victoryTitleText.color = battleResult.Contains("胜利") ? Color.yellow : Color.red;
             }
+        }
+    }
+
+    void ShowGameOverPanel()
+    {
+        string msg = "⚰️ 全军覆没 ⚰️\n按 R 返回主菜单";
+        if (victoryPanel != null)
+        {
+            victoryPanel.SetActive(true);
+            if (victoryTitleText != null)
+            {
+                victoryTitleText.text = msg;
+                victoryTitleText.color = Color.red;
+            }
+        }
+        else
+        {
+            BattleLog.Add(msg);
         }
     }
 

@@ -184,6 +184,10 @@ public class UnitData : MonoBehaviour
     public int currentHP;
     public int shieldHP;
 
+    [Header("死亡之门")]
+    public bool isOnDeathsDoor;
+    public float deathsDoorResist = 0.67f;
+
     [Header("压力系统")]
     public int stress;
     public const int MaxStressConst = 200;
@@ -232,6 +236,10 @@ public class UnitData : MonoBehaviour
         if (hpBarFollower != null)
         {
             hpBarFollower.UpdateHP(currentHP, MaxHp);
+            if (isOnDeathsDoor && currentHP <= 0)
+                hpBarFollower.SetDeathsDoor(true);
+            else
+                hpBarFollower.SetDeathsDoor(false);
             return;
         }
 

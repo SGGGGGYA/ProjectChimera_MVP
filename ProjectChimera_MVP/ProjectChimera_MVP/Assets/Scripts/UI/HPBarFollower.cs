@@ -31,6 +31,16 @@ public class HPBarFollower : MonoBehaviour
         target = t;
     }
 
+    bool isDeathsDoor;
+    float pulseTimer;
+
+    public void SetDeathsDoor(bool active)
+    {
+        isDeathsDoor = active;
+        if (!active && fillImage != null)
+            fillImage.color = Color.green;
+    }
+
     /// <summary>
     /// 更新血量（战斗管理器扣血/回血时调用）
     /// </summary>
@@ -80,6 +90,14 @@ public class HPBarFollower : MonoBehaviour
                 // 加血或已经追上：直接对齐，避免闪烁
                 trailImage.fillAmount = fillImage.fillAmount;
             }
+        }
+
+        // 3. 死亡之门闪烁效果
+        if (isDeathsDoor && fillImage != null)
+        {
+            pulseTimer += Time.deltaTime * 4f;
+            float alpha = 0.3f + Mathf.Abs(Mathf.Sin(pulseTimer)) * 0.7f;
+            fillImage.color = new Color(1f, 0.2f, 0.2f, alpha);
         }
     }
 }
