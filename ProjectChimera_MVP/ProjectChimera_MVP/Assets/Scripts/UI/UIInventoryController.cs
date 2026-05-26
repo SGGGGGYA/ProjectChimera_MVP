@@ -325,7 +325,7 @@ public class UIInventoryController : MonoBehaviour
             var stack = selectedStack;
             ShowCharSelectorGeneric((unit) =>
             {
-                unit.currentHP = Mathf.Min(unit.currentHP + healAmt, unit.MaxHp);
+                unit.currentHP = Mathf.Min(unit.currentHP + healAmt, unit.maxHp > 0 ? unit.maxHp : unit.ComputeMaxHP());
                 gm.RemoveItem(stack.itemId, 1);
                 Refresh();
                 detailPanel.SetActive(false);

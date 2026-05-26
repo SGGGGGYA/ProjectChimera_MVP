@@ -32,6 +32,24 @@ public class UnitBattleData
     public Weapon equippedWeapon;
     public Armor equippedArmor;
     public List<Quirk> quirks = new List<Quirk>();
+    public int currentHP;
+    public int maxHp;
+
+    public int GetClassBaseHP()
+    {
+        if (unitName.Contains("战士")) return 40;
+        if (unitName.Contains("狂战士")) return 50;
+        if (unitName.Contains("游侠")) return 30;
+        if (unitName.Contains("学者")) return 25;
+        if (unitName.Contains("哥布林")) return 40;
+        if (unitName.Contains("野狼") || unitName.Contains("狼")) return 40;
+        return 40;
+    }
+
+    public int ComputeMaxHP()
+    {
+        return VIT * 5 + GetClassBaseHP();
+    }
 }
 
 public class GameManager : MonoBehaviour
@@ -486,7 +504,7 @@ public class GameManager : MonoBehaviour
                 VIT = 8, STR = 10, DEF = 6, AGI = 5, INT = 3,
                 weaponAttack = 5, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
-                equippedArmor = MakeTestArmor("plate_armor", "铠甲", 3)
+                equippedArmor = MakeTestArmor("plate_armor", "铠甲", 3),
             },
             new UnitBattleData
             {
@@ -513,6 +531,12 @@ public class GameManager : MonoBehaviour
                 equippedArmor = MakeTestArmor("robe", "法袍", 1)
             }
         };
+
+        foreach (var u in playerTeamData)
+        {
+            u.maxHp = u.ComputeMaxHP();
+            u.currentHP = u.maxHp;
+        }
 
         gold = 100;
         inventory = new List<ItemStack>
@@ -581,6 +605,12 @@ public class GameManager : MonoBehaviour
                     equippedWeapon = MakeTestWeapon("spirit_staff", "法杖", StatType.INT, 3),
                     equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1) }
             };
+        }
+
+        foreach (var u in enemyTeamData)
+        {
+            u.maxHp = u.ComputeMaxHP();
+            u.currentHP = u.maxHp;
         }
 
         currentState = GameState.Battle;
@@ -661,6 +691,11 @@ public class GameManager : MonoBehaviour
         savedSquadPos = new Vector2Int(data.squadX, data.squadY);
         inventory = data.inventory ?? new List<ItemStack>();
         gold = data.gold;
+        foreach (var u in playerTeamData)
+        {
+            if (u.maxHp <= 0) u.maxHp = u.ComputeMaxHP();
+            if (u.currentHP <= 0) u.currentHP = u.maxHp;
+        }
         Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件, 金币{gold}");
         return true;
     }

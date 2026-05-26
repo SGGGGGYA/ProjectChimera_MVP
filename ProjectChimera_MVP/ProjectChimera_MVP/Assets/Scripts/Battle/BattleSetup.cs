@@ -426,7 +426,7 @@ public class BattleSetup : MonoBehaviour
         unit.weaponAttack = data.weaponAttack;
         unit.level = data.level;
         unit.currentExp = data.currentExp;
-        unit.currentHP = unit.MaxHp;
+        unit.currentHP = data.currentHP > 0 ? Mathf.Min(data.currentHP, unit.MaxHp) : unit.MaxHp;
         unit.stress = data.stress;
         unit.stressResistRate = Mathf.Min(StressManager.config.baseResist + data.level * StressManager.config.resistPerLevel, StressManager.config.maxResist);
         unit.skills = classDef != null ? new List<SkillData>(classDef.skillPool) : new List<SkillData>();

@@ -1123,6 +1123,8 @@ public class BattleManager : MonoBehaviour
                 data.equippedArmor = unit.equippedArmor;
                 data.quirks = unit.quirks;
                 data.rank = unit.rank;
+                data.currentHP = unit.currentHP;
+                data.maxHp = unit.MaxHp;
             }
             gm.ReturnToWorldMap();
         }
