@@ -62,6 +62,7 @@ public class UIInventoryController : MonoBehaviour
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        UIFonts.EnsureEventSystem();
 
         var root = new GameObject("InventoryPanel", typeof(RectTransform));
         root.layer = 5;
@@ -451,7 +452,7 @@ public class UIInventoryController : MonoBehaviour
         charSelector.SetActive(false);
         Refresh();
         detailPanel.SetActive(false);
-        Debug.Log($"[背包] 已卸下 {unit.unitName} 的装备");
+        Log.Info($"[背包] 已卸下 {unit.unitName} 的装备");
     }
 
     public void OnUseClick()
@@ -475,7 +476,7 @@ public class UIInventoryController : MonoBehaviour
                 Refresh();
                 detailPanel.SetActive(false);
                 charSelector.SetActive(false);
-                Debug.Log($"[背包] {itemName} 对 {unit.unitName} 使用了，回复 {healAmt} HP");
+                Log.Info($"[背包] {itemName} 对 {unit.unitName} 使用了，回复 {healAmt} HP");
             });
             return;
         }
@@ -491,7 +492,7 @@ public class UIInventoryController : MonoBehaviour
                 Refresh();
                 detailPanel.SetActive(false);
                 charSelector.SetActive(false);
-                Debug.Log($"[背包] {itemName} 对 {unit.unitName} 使用了，减压 {reliefAmt}");
+                Log.Info($"[背包] {itemName} 对 {unit.unitName} 使用了，减压 {reliefAmt}");
             });
             return;
         }
@@ -605,7 +606,7 @@ public class UIInventoryController : MonoBehaviour
         charSelector.SetActive(false);
         Refresh();
         detailPanel.SetActive(false);
-        Debug.Log($"[背包] {def.itemName} 已装备到 {unit.unitName}");
+        Log.Info($"[背包] {def.itemName} 已装备到 {unit.unitName}");
     }
 
     static Equipment CloneEquipment(Equipment src)

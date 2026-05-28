@@ -11,7 +11,7 @@ public static class InventoryPrefabCreator
         CreateSlotPrefab();
         CreateCharButtonPrefab();
         CreatePanelPrefab();
-        Debug.Log("背包预制体已全部生成: Assets/Resources/InventoryPanel.prefab");
+        Log.Info("背包预制体已全部生成: Assets/Resources/InventoryPanel.prefab");
     }
 
     static void CreateSlotPrefab()

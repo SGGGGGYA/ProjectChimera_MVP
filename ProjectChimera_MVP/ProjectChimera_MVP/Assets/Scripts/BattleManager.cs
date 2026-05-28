@@ -67,6 +67,7 @@ public class BattleManager : MonoBehaviour
     // 战后奖励追踪
     private int totalExpPerUnit;
     private int goldEarned;
+    private List<ItemStack> pendingDrops = new List<ItemStack>();
     private List<string> lootDisplayLines;
     private bool rewardCollected;
 
@@ -76,6 +77,7 @@ public class BattleManager : MonoBehaviour
 
         totalExpPerUnit = 0;
         goldEarned = 0;
+        pendingDrops.Clear();
         lootDisplayLines = null;
         rewardCollected = false;
 
@@ -198,7 +200,15 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            CyclePlayerSelection(-1);
+        }
+        else if (Input.GetKeyDown(KeyCode.D))
+        {
+            CyclePlayerSelection(1);
+        }
+        else if (Input.GetKeyDown(KeyCode.Space))
         {
             DoBasicAttack();
         }
@@ -214,6 +224,17 @@ public class BattleManager : MonoBehaviour
         {
             CheckSkillKeyPress();
         }
+    }
+
+    void CyclePlayerSelection(int direction)
+    {
+        if (playerUnits.Count == 0) return;
+        int idx = currentSelectedUnit != null ? playerUnits.IndexOf(currentSelectedUnit) : -1;
+        idx = (idx + direction + playerUnits.Count) % playerUnits.Count;
+        if (currentSelectedUnit != null)
+            currentSelectedUnit.SetHighlight(false);
+        currentSelectedUnit = playerUnits[idx];
+        currentSelectedUnit.SetHighlight(true);
     }
 
     // ==================== 战斗物品系统 ====================
@@ -314,9 +335,13 @@ public class BattleManager : MonoBehaviour
 
     void HandleTargetingInput()
     {
-        if (Input.GetKeyDown(KeyCode.Tab))
+        if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.D))
         {
-            CycleTarget();
+            CycleTarget(1);
+        }
+        else if (Input.GetKeyDown(KeyCode.A))
+        {
+            CycleTarget(-1);
         }
         else if (Input.GetKeyDown(KeyCode.Space))
         {
@@ -342,7 +367,7 @@ public class BattleManager : MonoBehaviour
     {
         if (clickedUnit == null || battleOver) return;
 
-        Debug.Log($"OnUnitClicked: {clickedUnit.unitName}, isInTargetingMode={isInTargetingMode}, inputState={inputState}, currentSelectedUnit={currentSelectedUnit?.unitName}");
+        Log.Info($"OnUnitClicked: {clickedUnit.unitName}, isInTargetingMode={isInTargetingMode}, inputState={inputState}, currentSelectedUnit={currentSelectedUnit?.unitName}");
 
         // ===== 选目标阶段：固定高亮，不做 Toggle =====
         if (isInTargetingMode)
@@ -355,7 +380,7 @@ public class BattleManager : MonoBehaviour
                 ConfirmTarget();
                 return;
             }
-            Debug.Log($"[选目标] {clickedUnit.unitName} 不是当前技能的合法目标");
+            Log.Info($"[选目标] {clickedUnit.unitName} 不是当前技能的合法目标");
             return;
         }
 
@@ -379,7 +404,7 @@ public class BattleManager : MonoBehaviour
         UnitData attacker = TurnManager.Instance?.currentUnit;
         if (attacker == null || skillIndex < 0 || skillIndex >= attacker.skills.Count)
         {
-            Debug.LogWarning($"[技能] 无效的技能索引: {skillIndex}");
+            Log.Warn($"[技能] 无效的技能索引: {skillIndex}");
             return;
         }
 
@@ -393,7 +418,7 @@ public class BattleManager : MonoBehaviour
         selectedSkillIndex = skillIndex;
         pendingSkill = skill;
         inputState = BattleInputState.SkillSelected;
-        Debug.Log($"[技能] 选中 {pendingSkill.skillName}");
+        Log.Info($"[技能] 选中 {pendingSkill.skillName}");
 
         // 立即进入选目标模式，不等下一帧 Update
         EnterTargetingMode();
@@ -414,7 +439,7 @@ public class BattleManager : MonoBehaviour
             selectedSkillIndex = key;
             pendingSkill = attacker.skills[key];
             inputState = BattleInputState.SkillSelected;
-            Debug.Log($"[技能] 选中 {pendingSkill.skillName}");
+            Log.Info($"[技能] 选中 {pendingSkill.skillName}");
         }
     }
 
@@ -471,7 +496,7 @@ public class BattleManager : MonoBehaviour
     /// <summary>进入选目标模式：计算合法目标，设置 Dimmed 状态</summary>
     void EnterTargetingMode()
     {
-        Debug.Log("EnterTargetingMode 被调用");
+        Log.Info("EnterTargetingMode 被调用");
         UnitData attacker = TurnManager.Instance.currentUnit;
         if (attacker == null || pendingSkill == null) { CancelSkillSelection(); return; }
 
@@ -508,13 +533,13 @@ public class BattleManager : MonoBehaviour
 
         if (validTargets.Count == 0)
         {
-            Debug.Log("[技能] 没有合法目标！");
+            Log.Info("[技能] 没有合法目标！");
             CancelSkillSelection();
             return;
         }
 
         isInTargetingMode = true;
-        Debug.Log($"EnterTargetingMode 完成，isInTargetingMode={isInTargetingMode}, 技能={pendingSkill?.skillName}");
+        Log.Info($"EnterTargetingMode 完成，isInTargetingMode={isInTargetingMode}, 技能={pendingSkill?.skillName}");
 
         // 预选第一个合法目标
         targetCycleIndex = 0;
@@ -522,9 +547,9 @@ public class BattleManager : MonoBehaviour
         // 所有单位设置 Dimmed，合法目标恢复 Normal，第一个预选为 Highlighted
         ApplyTargetingOverlay();
 
-        Debug.Log($"[选目标] 合法目标数: {validTargets.Count}");
+        Log.Info($"[选目标] 合法目标数: {validTargets.Count}");
         foreach (var t in validTargets)
-            Debug.Log($"[选目标]  → {t.unitName}");
+            Log.Info($"[选目标]  → {t.unitName}");
 
         inputState = BattleInputState.Targeting;
     }
@@ -686,11 +711,12 @@ public class BattleManager : MonoBehaviour
         pendingItemStack = null;
     }
 
-    void CycleTarget()
+    void CycleTarget(int direction)
     {
         if (validTargets == null || validTargets.Count == 0) return;
         ClearHighlight(highlightedTarget);
-        targetCycleIndex = (targetCycleIndex + 1) % validTargets.Count;
+        int count = validTargets.Count;
+        targetCycleIndex = (targetCycleIndex + direction + count) % count;
         HighlightTarget(validTargets[targetCycleIndex]);
         ApplyTargetingOverlay();
     }
@@ -838,6 +864,7 @@ public class BattleManager : MonoBehaviour
         if (!CombatSystem.IsHit(attacker, target))
         {
             BattleLog.Add($"{attacker.unitName} 攻击 {target.unitName} —— <color=#aaaaaa>未命中！</color>");
+            SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_MISS);
             if (!battleOver)
@@ -885,6 +912,7 @@ public class BattleManager : MonoBehaviour
             int absorbed = Mathf.Min(target.shieldHP, damage);
             target.shieldHP -= absorbed;
             damage -= absorbed;
+            SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, absorbed, PopupType.Shield);
             BattleLog.Add($"[护盾] {target.unitName} 的护盾吸收了 {absorbed} 点伤害");
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_SHIELD);
@@ -968,13 +996,7 @@ public class BattleManager : MonoBehaviour
             target.isOnDeathsDoor = false;
         }
 
-        if (damagePopupPrefab != null)
-        {
-            Vector3 spawnPos = target.transform.position + Vector3.up * 1.5f;
-            GameObject popupGo = Instantiate(damagePopupPrefab, spawnPos, Quaternion.identity);
-            DamagePopup popupScript = popupGo.GetComponent<DamagePopup>();
-            if (popupScript != null) popupScript.Setup(damage);
-        }
+        SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, damage, isCrit ? PopupType.Crit : PopupType.Damage);
 
         if (hitFeedbackRoutine != null) StopCoroutine(hitFeedbackRoutine);
         if (originalPositions.TryGetValue(target, out Vector3 origPos))
@@ -1006,20 +1028,19 @@ public class BattleManager : MonoBehaviour
                         pu.GainExp(expReward);
                 }
 
-                int goldDrop = Random.Range(3, 10);
+                int goldDrop = DropTable.RollGold(target.unitName);
                 goldEarned += goldDrop;
                 if (lootDisplayLines == null) lootDisplayLines = new List<string>();
                 lootDisplayLines.Add($"{target.unitName}: {goldDrop}金");
 
-                if (target.unitName.Contains("萨满") && Random.value < 0.5f)
+                var drops = DropTable.RollDrops(target.unitName);
+                foreach (var stack in drops)
                 {
-                    GameManager.Instance.AddItem("stress_herb", 1);
-                    lootDisplayLines.Add($"  掉落: 镇静草药");
-                }
-                else if (Random.value < 0.3f)
-                {
-                    GameManager.Instance.AddItem("health_potion", 1);
-                    lootDisplayLines.Add($"  掉落: 生命药水");
+                    pendingDrops.Add(stack);
+                    var def = ItemDatabase.Get(stack.itemId);
+                    string name = def != null ? def.itemName : stack.itemId;
+                    if (stack.quantity > 1) name += $" x{stack.quantity}";
+                    lootDisplayLines.Add($"  掉落: {name}");
                 }
             }
 
@@ -1029,9 +1050,8 @@ public class BattleManager : MonoBehaviour
             if (allEnemyDead)
             {
                 battleOver = true;
-                battleResult = "胜利！🎉";
+                battleResult = "胜利！";
                 BattleLog.Add("【胜利】战斗胜利！");
-                GameManager.Instance.gold += goldEarned;
                 ShowRewardPanel();
                 if (AudioManager.Instance != null)
                 {
@@ -1042,7 +1062,7 @@ public class BattleManager : MonoBehaviour
             else if (allPlayerDead)
             {
                 battleOver = true;
-                battleResult = "失败... 💀";
+                battleResult = "失败...";
                 BattleLog.Add("【失败】全军覆没！");
                 ShowGameOverPanel();
                 if (AudioManager.Instance != null)
@@ -1092,7 +1112,7 @@ public class BattleManager : MonoBehaviour
         titleRt.anchoredPosition = new Vector2(0, -12);
         titleGo.AddComponent<CanvasRenderer>();
         var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-        titleTmp.text = "🎉 战斗胜利！🎉";
+        titleTmp.text = "战斗胜利！";
         titleTmp.fontSize = 22; titleTmp.alignment = TextAlignmentOptions.Center;
         titleTmp.color = Color.yellow; UIFonts.Apply(titleTmp);
 
@@ -1123,7 +1143,7 @@ public class BattleManager : MonoBehaviour
         glRt.anchoredPosition = new Vector2(0, yOff);
         goldLine.AddComponent<CanvasRenderer>();
         var glTmp = goldLine.AddComponent<TextMeshProUGUI>();
-        glTmp.text = $"💰 金币 +{goldEarned}  (持有: {GameManager.Instance.gold})";
+        glTmp.text = $"金币 +{goldEarned}  ({GameManager.Instance.gold} → {GameManager.Instance.gold + goldEarned})";
         glTmp.fontSize = 15; glTmp.alignment = TextAlignmentOptions.Left;
         glTmp.color = Color.yellow; UIFonts.Apply(glTmp);
         yOff -= 22;
@@ -1167,7 +1187,13 @@ public class BattleManager : MonoBehaviour
         lblTmp.text = "继续"; lblTmp.fontSize = 16; lblTmp.alignment = TextAlignmentOptions.Center;
         lblTmp.color = Color.white; UIFonts.Apply(lblTmp);
         var btn = btnGo.AddComponent<UnityEngine.UI.Button>();
-        btn.onClick.AddListener(() => { rewardCollected = true; });
+        btn.onClick.AddListener(() =>
+        {
+            GameManager.Instance.gold += goldEarned;
+            foreach (var stack in pendingDrops)
+                GameManager.Instance.AddItem(stack.itemId, stack.quantity);
+            rewardCollected = true;
+        });
 
         // Disable old victory panel if exists
         if (victoryPanel != null) victoryPanel.SetActive(false);
@@ -1209,7 +1235,7 @@ public class BattleManager : MonoBehaviour
         titleRt.anchoredPosition = Vector2.zero;
         titleGo.AddComponent<CanvasRenderer>();
         var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-        titleTmp.text = "⚰️ 全军覆没 ⚰️\n按 R 返回主菜单";
+        titleTmp.text = "全军覆没\n按 R 返回主菜单";
         titleTmp.fontSize = 20; titleTmp.alignment = TextAlignmentOptions.Center;
         titleTmp.color = Color.red; UIFonts.Apply(titleTmp);
 
@@ -1333,5 +1359,36 @@ public class BattleManager : MonoBehaviour
 
     // ==================== UI ====================
 
+    public void SpawnDamagePopup(Vector3 position, int amount, PopupType type)
+    {
+        GameObject go = damagePopupPrefab != null
+            ? Instantiate(damagePopupPrefab, position, Quaternion.identity)
+            : CreateDefaultPopup(position);
+        var popup = go.GetComponent<DamagePopup>();
+        if (popup != null)
+            popup.Setup(amount, type);
+    }
+
+    public void SpawnTextPopup(Vector3 position, string text, Color color, float fontSize = 4f)
+    {
+        GameObject go = damagePopupPrefab != null
+            ? Instantiate(damagePopupPrefab, position, Quaternion.identity)
+            : CreateDefaultPopup(position);
+        var popup = go.GetComponent<DamagePopup>();
+        if (popup != null)
+            popup.SetupText(text, color, fontSize);
+    }
+
+    GameObject CreateDefaultPopup(Vector3 position)
+    {
+        var go = new GameObject("DamagePopup");
+        go.transform.position = position;
+        var tmp = go.AddComponent<TextMeshPro>();
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontSize = 3.5f;
+        tmp.color = Color.red;
+        go.AddComponent<DamagePopup>();
+        return go;
+    }
 
 }

@@ -7,6 +7,7 @@ public class UIPauseMenu : MonoBehaviour
 {
     public GameObject panel;
     private GameObject settingsPanel;
+    private GameObject fullScreenBlocker;
 
     public static UIPauseMenu Instance { get; private set; }
 
@@ -52,9 +53,31 @@ public class UIPauseMenu : MonoBehaviour
             cgo.layer = 5;
             canvas = cgo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        else
+        {
+            if (canvas.GetComponent<GraphicRaycaster>() == null)
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 100);
+        }
+        UIFonts.EnsureEventSystem();
+
+        // 全屏阻隔层：阻止点击穿透到大地图
+        var blocker = new GameObject("FullScreenBlocker", typeof(RectTransform));
+        blocker.layer = 5;
+        blocker.transform.SetParent(canvas.transform, false);
+        var blockRt = blocker.GetComponent<RectTransform>();
+        blockRt.anchorMin = Vector2.zero;
+        blockRt.anchorMax = Vector2.one;
+        blockRt.offsetMin = Vector2.zero;
+        blockRt.offsetMax = Vector2.zero;
+        var blockImg = blocker.AddComponent<Image>();
+        blockImg.color = Color.clear;
+        blockImg.raycastTarget = true;
+        fullScreenBlocker = blocker;
 
         var root = new GameObject("PauseMenu", typeof(RectTransform));
         root.layer = 5;
@@ -96,17 +119,17 @@ public class UIPauseMenu : MonoBehaviour
         UIFonts.Apply(titleTmp);
 
         float y = -55;
-        MakeTextButton(root, "SaveBtn", y, "💾 保存游戏", new Color(0.2f, 0.35f, 0.2f), () => OnSave());
+        MakeTextButton(root, "SaveBtn", y, "保存游戏", new Color(0.2f, 0.35f, 0.2f), () => OnSave());
         y -= 46;
-        MakeTextButton(root, "LoadBtn", y, "📂 读取存档", new Color(0.25f, 0.25f, 0.3f), () => OnLoad());
+        MakeTextButton(root, "LoadBtn", y, "读取存档", new Color(0.25f, 0.25f, 0.3f), () => OnLoad());
         y -= 46;
-        MakeTextButton(root, "SettingsBtn", y, "⚙️ 设置", new Color(0.3f, 0.3f, 0.2f), () => ToggleSettings());
+        MakeTextButton(root, "SettingsBtn", y, "设置", new Color(0.3f, 0.3f, 0.2f), () => ToggleSettings());
         y -= 46;
-        MakeTextButton(root, "RecruitBtn", y, "🏪 招募", new Color(0.25f, 0.3f, 0.35f), () => { Close(); OpenRecruit(); });
+        MakeTextButton(root, "RecruitBtn", y, "招募", new Color(0.25f, 0.3f, 0.35f), () => { Close(); OpenRecruit(); });
         y -= 46;
-        MakeTextButton(root, "MenuBtn", y, "🏠 返回主菜单", new Color(0.4f, 0.2f, 0.2f), () => OnReturnToMenu());
+        MakeTextButton(root, "MenuBtn", y, "返回主菜单", new Color(0.4f, 0.2f, 0.2f), () => OnReturnToMenu());
         y -= 46;
-        MakeTextButton(root, "CloseBtn", y, "✕ 关闭", new Color(0.25f, 0.25f, 0.25f), Close);
+        MakeTextButton(root, "CloseBtn", y, "关闭", new Color(0.25f, 0.25f, 0.25f), Close);
 
         // 设置面板 (内嵌，初始隐藏)
         var sp = new GameObject("SettingsPanel", typeof(RectTransform));
@@ -122,11 +145,11 @@ public class UIPauseMenu : MonoBehaviour
         settingsPanel = sp;
 
         var bgmLabel = MakeLabel(sp, "BGM_Label", new Vector2(20, -15), "BGM 音量", 14, Color.white);
-        var bgmSlider = MakeSlider(sp, "BGM_Slider", new Vector2(20, -38), AudioManager.Instance.bgmVolume, v => {
+        var bgmSlider = MakeSlider(sp, "BGM_Slider", new Vector2(20, -38), AudioManager.Instance != null ? AudioManager.Instance.bgmVolume : 0.5f, v => {
             if (AudioManager.Instance != null) AudioManager.Instance.SetBGMVolume(v);
         });
         var sfxLabel = MakeLabel(sp, "SFX_Label", new Vector2(20, -68), "SFX 音量", 14, Color.white);
-        var sfxSlider = MakeSlider(sp, "SFX_Slider", new Vector2(20, -91), AudioManager.Instance.sfxVolume, v => {
+        var sfxSlider = MakeSlider(sp, "SFX_Slider", new Vector2(20, -91), AudioManager.Instance != null ? AudioManager.Instance.sfxVolume : 0.5f, v => {
             if (AudioManager.Instance != null) AudioManager.Instance.SetSFXVolume(v);
         });
 
@@ -160,6 +183,7 @@ public class UIPauseMenu : MonoBehaviour
         tmp.fontSize = 14;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
+        tmp.raycastTarget = false;
         UIFonts.Apply(tmp);
 
         var btn = go.AddComponent<Button>();
@@ -259,14 +283,14 @@ public class UIPauseMenu : MonoBehaviour
         if (gm.LoadGame())
         {
             Close();
-            SceneManager.LoadScene("WorldMap");
+            GameManager.LoadSceneClean("WorldMap");
         }
     }
 
     void OnReturnToMenu()
     {
         Close();
-        SceneManager.LoadScene("MainMenu");
+        GameManager.LoadSceneClean("MainMenu");
     }
 
     void OpenRecruit()
@@ -279,6 +303,7 @@ public class UIPauseMenu : MonoBehaviour
     {
         if (panel == null) EnsurePanel();
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (fullScreenBlocker != null) fullScreenBlocker.SetActive(true);
         panel.SetActive(true);
     }
 
@@ -286,5 +311,6 @@ public class UIPauseMenu : MonoBehaviour
     {
         if (panel != null) panel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (fullScreenBlocker != null) fullScreenBlocker.SetActive(false);
     }
 }

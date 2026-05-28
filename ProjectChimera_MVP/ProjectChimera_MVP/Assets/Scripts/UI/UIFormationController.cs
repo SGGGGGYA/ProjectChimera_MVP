@@ -51,6 +51,7 @@ public class UIFormationController : MonoBehaviour
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        UIFonts.EnsureEventSystem();
 
         var root = new GameObject("FormationPanel", typeof(RectTransform));
         root.layer = 5;
@@ -287,6 +288,6 @@ public class UIFormationController : MonoBehaviour
         gm.playerTeamData[a].rank = rankB;
         gm.playerTeamData[b].rank = rankA;
 
-        Debug.Log($"[阵型] 交换 {nameA} (站位 {rankA}) 与 {nameB} (站位 {rankB})");
+        Log.Info($"[阵型] 交换 {nameA} (站位 {rankA}) 与 {nameB} (站位 {rankB})");
     }
 }

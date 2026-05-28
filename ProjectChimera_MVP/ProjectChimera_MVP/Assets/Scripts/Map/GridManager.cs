@@ -18,6 +18,17 @@ public class GridManager : MonoBehaviour
     public float moveSpeed = 3f;
 
     private GameObject[,] tiles;
+
+    public static bool IsUIPanelOpen()
+    {
+        if (UIShopController.Instance != null && UIShopController.Instance.panel != null && UIShopController.Instance.panel.activeSelf) return true;
+        if (UIInventoryController.Instance != null && UIInventoryController.Instance.panel != null && UIInventoryController.Instance.panel.activeSelf) return true;
+        if (UIFormationController.Instance != null && UIFormationController.Instance.panel != null && UIFormationController.Instance.panel.activeSelf) return true;
+        if (UIPauseMenu.Instance != null && UIPauseMenu.Instance.panel != null && UIPauseMenu.Instance.panel.activeSelf) return true;
+        if (UIRecruitController.Instance != null && UIRecruitController.Instance.panel != null && UIRecruitController.Instance.panel.activeSelf) return true;
+        if (UIDungeonMapController.Instance != null && UIDungeonMapController.Instance.panel != null && UIDungeonMapController.Instance.panel.activeSelf) return true;
+        return false;
+    }
     private GameObject squadMarker;
     private Vector2Int squadGridPos = new Vector2Int(0, 0);
     private List<Vector2Int> battleTiles = new List<Vector2Int>();
@@ -29,7 +40,7 @@ public class GridManager : MonoBehaviour
     {
         if (GameManager.Instance != null && GameManager.Instance.currentState != GameState.WorldMap)
         {
-            Debug.Log("[GridManager] 当前不是世界地图状态，销毁自身");
+            Log.Info("[GridManager] 当前不是世界地图状态，销毁自身");
             Destroy(gameObject);
             return;
         }
@@ -180,17 +191,17 @@ public class GridManager : MonoBehaviour
 
     void OnSquadEnteredBattleTile()
     {
-        Debug.Log("[GridManager] 进入战斗格！触发遭遇战...");
+        Log.Info("[GridManager] 进入战斗格！触发遭遇战...");
         if (GameManager.Instance != null)
         {
             // 保存地图位置，战斗回来后恢复
             GameManager.Instance.savedSquadPos = squadGridPos;
-            Debug.Log($"[GridManager] 保存位置 ({squadGridPos.x},{squadGridPos.y})");
+            Log.Info($"[GridManager] 保存位置 ({squadGridPos.x},{squadGridPos.y})");
             GameManager.Instance.StartBattle();
         }
         else
         {
-            Debug.LogError("[GridManager] GameManager.Instance 为 null！");
+            Log.Error("[GridManager] GameManager.Instance 为 null！");
         }
     }
 
@@ -242,7 +253,7 @@ public class TileClickHandler : MonoBehaviour
 
     void OnMouseDown()
     {
-        if (grid != null)
+        if (grid != null && !GridManager.IsUIPanelOpen())
         {
             grid.OnTileClicked(tileX, tileY);
         }

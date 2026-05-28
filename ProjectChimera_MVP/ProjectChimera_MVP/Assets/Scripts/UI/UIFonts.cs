@@ -1,9 +1,20 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public static class UIFonts
 {
     static TMP_FontAsset _chinese;
+
+    public static void EnsureEventSystem()
+    {
+        if (Object.FindObjectOfType<EventSystem>() == null)
+        {
+            var es = new GameObject("EventSystem", typeof(EventSystem));
+            es.AddComponent<StandaloneInputModule>();
+            Object.DontDestroyOnLoad(es);
+        }
+    }
 
     public static TMP_FontAsset Chinese
     {
@@ -37,6 +48,7 @@ public static class UIFonts
         tmp.fontSize = fontSize;
         tmp.color = color;
         tmp.alignment = TextAlignmentOptions.Center;
+        tmp.raycastTarget = false;
         Apply(tmp);
         return tmp;
     }

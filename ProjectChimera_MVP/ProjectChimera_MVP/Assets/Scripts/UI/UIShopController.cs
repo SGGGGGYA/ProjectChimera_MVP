@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class UIShopController : MonoBehaviour
 {
-    GameObject panel;
+    public GameObject panel;
     Transform itemList;
     GameObject detailPanel;
     TextMeshProUGUI detailName;
@@ -54,6 +54,11 @@ public class UIShopController : MonoBehaviour
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        else if (canvas.GetComponent<GraphicRaycaster>() == null)
+        {
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+        }
+        UIFonts.EnsureEventSystem();
 
         var root = new GameObject("ShopPanel", typeof(RectTransform));
         root.layer = 5;

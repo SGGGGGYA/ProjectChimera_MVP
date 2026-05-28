@@ -548,7 +548,7 @@ public class UnitData : MonoBehaviour
 
             currentHP = MaxHp;
             UpdateHPUI();
-            BattleLog.Add($"🎉 {unitName} 升级到 {level} 级！HP 全恢复");
+            BattleLog.Add($"{unitName} 升级到 {level} 级！HP 全恢复");
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_LEVEL_UP);
         }

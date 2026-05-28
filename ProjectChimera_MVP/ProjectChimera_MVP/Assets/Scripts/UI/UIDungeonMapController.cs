@@ -63,7 +63,7 @@ public class UIDungeonMapController : MonoBehaviour
         var session = GameManager.Instance?.dungeonSession;
         if (session == null || session.currentMap == null)
         {
-            Debug.LogError("[DungeonMap] 没有地牢会话或地图数据");
+            Log.Error("[DungeonMap] 没有地牢会话或地图数据");
             return;
         }
 
@@ -89,6 +89,7 @@ public class UIDungeonMapController : MonoBehaviour
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        UIFonts.EnsureEventSystem();
 
         var root = new GameObject("DungeonMapPanel", typeof(RectTransform));
         root.layer = 5;
@@ -380,18 +381,18 @@ public class UIDungeonMapController : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        int itemCount = Random.Range(1, 3);
-        int goldAmount = Random.Range(10, 31);
-
+        int goldAmount = DropTable.RollGold("treasure_chest");
         gm.gold += goldAmount;
 
+        var drops = DropTable.RollDrops("treasure_chest");
         string itemNames = "";
-        for (int i = 0; i < itemCount; i++)
+        foreach (var stack in drops)
         {
-            string itemId = Random.value < 0.5f ? "health_potion" : "stress_herb";
-            gm.AddItem(itemId, 1);
-            var def = ItemDatabase.Get(itemId);
-            itemNames += (def != null ? def.itemName : itemId) + " ";
+            gm.AddItem(stack.itemId, stack.quantity);
+            var def = ItemDatabase.Get(stack.itemId);
+            string name = def != null ? def.itemName : stack.itemId;
+            if (stack.quantity > 1) name += $" x{stack.quantity}";
+            itemNames += name + " ";
         }
 
         ShowInfoPanel("宝箱", $"获得 {goldAmount} 金币\n{itemNames}");
@@ -644,6 +645,7 @@ public class UIDungeonMapController : MonoBehaviour
         tmp.fontSize = 14;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
+        tmp.raycastTarget = false;
         UIFonts.Apply(tmp);
 
         go.AddComponent<Button>();
@@ -699,6 +701,7 @@ public class UIDungeonMapController : MonoBehaviour
         tmp.fontSize = fontSize;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
+        tmp.raycastTarget = false;
         UIFonts.Apply(tmp);
 
         var btn = go.AddComponent<Button>();

@@ -68,6 +68,6 @@ public static class StressBarPrefabCreator
         PrefabUtility.SaveAsPrefabAsset(root, path);
         Object.DestroyImmediate(root);
 
-        Debug.Log($"StressBar prefab created at: {path}");
+        Log.Info($"StressBar prefab created at: {path}");
     }
 }

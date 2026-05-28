@@ -18,6 +18,7 @@ public class UIRoundCounter : MonoBehaviour
             cgo.AddComponent<UnityEngine.UI.CanvasScaler>();
             cgo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
         }
+        UIFonts.EnsureEventSystem();
 
         var go = new GameObject("RoundCounter", typeof(RectTransform));
         go.layer = 5;

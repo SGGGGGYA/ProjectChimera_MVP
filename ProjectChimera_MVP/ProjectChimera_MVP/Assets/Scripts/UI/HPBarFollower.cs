@@ -48,17 +48,17 @@ public class HPBarFollower : MonoBehaviour
     /// <param name="maxHP">最大血量</param>
     public void UpdateHP(int currentHP, int maxHP)
     {
-        Debug.Log($"[血条更新] {gameObject.name}, HP: {currentHP}/{maxHP}");
+        Log.Info($"[血条更新] {gameObject.name}, HP: {currentHP}/{maxHP}");
 
         // 计算血量百分比（强转 float，防止整型截断）
         float fillAmount = Mathf.Clamp01((float)currentHP / maxHP);
-        Debug.Log($"[血条更新] {gameObject.name}, fillAmount={fillAmount}");
+        Log.Info($"[血条更新] {gameObject.name}, fillAmount={fillAmount}");
 
         // 绿血：瞬间变化，零延迟
         if (fillImage != null)
             fillImage.fillAmount = fillAmount;
         else
-            Debug.LogWarning($"[血条更新] {gameObject.name} 的 fillImage 为 null！请在预制体中绑定");
+            Log.Warn($"[血条更新] {gameObject.name} 的 fillImage 为 null！请在预制体中绑定");
     }
 
     // ==============================

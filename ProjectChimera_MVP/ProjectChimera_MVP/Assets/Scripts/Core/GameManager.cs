@@ -132,6 +132,13 @@ public class GameManager : MonoBehaviour
             fcGO.AddComponent<UIFormationController>();
         }
 
+        if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            var es = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem));
+            DontDestroyOnLoad(es);
+            es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
         if (FindObjectOfType<UIPauseMenu>() == null)
         {
             var pmGO = new GameObject("UIPauseMenu");
@@ -151,6 +158,13 @@ public class GameManager : MonoBehaviour
             var dgo = new GameObject("UIDungeonMapController");
             DontDestroyOnLoad(dgo);
             dgo.AddComponent<UIDungeonMapController>();
+        }
+
+        if (FindObjectOfType<UIDebugConsole>() == null)
+        {
+            var dcg = new GameObject("UIDebugConsole");
+            DontDestroyOnLoad(dcg);
+            dcg.AddComponent<UIDebugConsole>();
         }
 
         if (dungeonSession.isInDungeon)
@@ -529,7 +543,7 @@ public class GameManager : MonoBehaviour
         };
         classDefinitions.Add(wolf);
 
-        Debug.Log($"[ClassDefinition] 已加载 {classDefinitions.Count} 个职业定义");
+        Log.Info($"[ClassDefinition] 已加载 {classDefinitions.Count} 个职业定义");
     }
 
     public ClassDefinition GetClassDefinition(string unitName)
@@ -719,7 +733,7 @@ public class GameManager : MonoBehaviour
     
     public void StartBattle()
     {
-        Debug.Log("[GameManager] StartBattle() 被调用");
+        Log.Info("[GameManager] StartBattle() 被调用");
         int template = Random.Range(0, 2);
         enemyTeamData = CreateEnemyTeamFromTemplate(template);
         foreach (var u in enemyTeamData)
@@ -734,7 +748,7 @@ public class GameManager : MonoBehaviour
     {
         if (!enemyTemplates.ContainsKey(templateId))
         {
-            Debug.LogError($"[GameManager] 找不到敌人模板 {templateId}，使用默认模板");
+            Log.Error($"[GameManager] 找不到敌人模板 {templateId}，使用默认模板");
             templateId = 0;
         }
         enemyTeamData = CreateEnemyTeamFromTemplate(templateId);
@@ -795,11 +809,11 @@ public class GameManager : MonoBehaviour
         string sceneName = "BattleScene";
         if (!Application.CanStreamedLevelBeLoaded(sceneName))
         {
-            Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
+            Log.Error($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
             return;
         }
         currentState = GameState.Battle;
-        SceneManager.LoadScene("BattleScene", LoadSceneMode.Single);
+        LoadSceneClean("BattleScene");
     }
 
     public void ReturnToWorldMap()
@@ -811,10 +825,10 @@ public class GameManager : MonoBehaviour
             string sceneName = "WorldMap";
             if (!Application.CanStreamedLevelBeLoaded(sceneName))
             {
-                Debug.LogError($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
+                Log.Error($"[GameManager] 场景 '{sceneName}' 不在 Build Settings 中！");
                 return;
             }
-            SceneManager.LoadScene("WorldMap", LoadSceneMode.Single);
+            LoadSceneClean("WorldMap");
             return;
         }
 
@@ -824,13 +838,13 @@ public class GameManager : MonoBehaviour
         string sceneName2 = "WorldMap";
         if (!Application.CanStreamedLevelBeLoaded(sceneName2))
         {
-            Debug.LogError($"[GameManager] 场景 '{sceneName2}' 不在 Build Settings 中！请在 File > Build Settings 中添加该场景。");
+            Log.Error($"[GameManager] 场景 '{sceneName2}' 不在 Build Settings 中！请在 File > Build Settings 中添加该场景。");
             return;
         }
 
         currentState = GameState.WorldMap;
-        Debug.Log("[GameManager] 返回世界地图...");
-        SceneManager.LoadScene("WorldMap", LoadSceneMode.Single);
+        Log.Info("[GameManager] 返回世界地图...");
+        LoadSceneClean("WorldMap");
     }
 
     // ========== 背包操作 ==========
@@ -900,7 +914,12 @@ public class GameManager : MonoBehaviour
             dungeonSession.currentMap = DungeonGenerator.GenerateMap(data.dungeonFloor, data.dungeonFloor);
             dungeonSession.isInDungeon = true;
         }
-        Debug.Log($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件, 金币{gold}");
+        Log.Info($"[存档] 已加载 - 队伍{playerTeamData.Count}人, 位置({data.squadX},{data.squadY}), 背包{inventory.Count}件, 金币{gold}");
         return true;
+    }
+
+    public static void LoadSceneClean(string sceneName)
+    {
+        SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
     }
 }

@@ -43,7 +43,7 @@ public static class BattleLog
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[BattleLog] 无法写入日志文件: {e.Message}");
+            Log.Warn($"[BattleLog] 无法写入日志文件: {e.Message}");
         }
     }
 
@@ -52,7 +52,7 @@ public static class BattleLog
     {
         string entry = $"[{Time.time:F1}s] {message}";
         entries.Add(entry);
-        Debug.Log(entry);
+        Log.Info(entry);
 
         // 追加到文件
         try
@@ -61,7 +61,7 @@ public static class BattleLog
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[BattleLog] 无法写入日志文件: {e.Message}");
+            Log.Warn($"[BattleLog] 无法写入日志文件: {e.Message}");
         }
 
         if (entries.Count > MaxEntries)

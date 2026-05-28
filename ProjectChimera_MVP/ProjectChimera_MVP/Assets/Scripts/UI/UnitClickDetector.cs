@@ -15,7 +15,7 @@ public class UnitClickDetector : MonoBehaviour
     {
         unitData = GetComponent<UnitData>();
         if (unitData == null)
-            Debug.LogWarning($"[UnitClickDetector] {gameObject.name} 上找不到 UnitData 组件");
+            Log.Warn($"[UnitClickDetector] {gameObject.name} 上找不到 UnitData 组件");
     }
 
     void Start()
@@ -25,12 +25,14 @@ public class UnitClickDetector : MonoBehaviour
 
     void OnMouseDown()
     {
+        if (GridManager.IsUIPanelOpen()) return;
         FireClickEvent();
     }
 
     void Update()
     {
         if (!Input.GetMouseButtonDown(0)) return;
+        if (GridManager.IsUIPanelOpen()) return;
 
         Camera cam = Camera.main;
         if (cam == null) return;
@@ -79,7 +81,7 @@ public class UnitClickDetector : MonoBehaviour
                 return;
         }
 
-        Debug.Log($"[点击] 选中 {unitData.unitName}");
+        Log.Info($"[点击] 选中 {unitData.unitName}");
         OnUnitClicked?.Invoke(unitData);
     }
 }

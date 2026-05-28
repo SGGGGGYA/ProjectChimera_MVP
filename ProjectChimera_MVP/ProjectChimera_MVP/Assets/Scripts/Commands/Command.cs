@@ -56,6 +56,7 @@ public class DealDamageCommand : Command
                 bool hit = CombatSystem.IsHit(ctx.attacker, enemy);
                 if (!hit)
                 {
+                    ctx.battleManager.SpawnDamagePopup(enemy.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
                     BattleLog.Add($"{ctx.attacker.unitName} 攻击 {enemy.unitName} —— <color=#aaaaaa>未命中！</color>");
                     continue;
                 }
@@ -79,7 +80,9 @@ public class DealDamageCommand : Command
 
             if (!CombatSystem.IsHit(ctx.attacker, ctx.selectedTarget))
             {
+                ctx.battleManager.SpawnDamagePopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
                 BattleLog.Add($"{ctx.attacker.unitName} 攻击 {ctx.selectedTarget.unitName} —— <color=#aaaaaa>未命中！</color>");
+                result.skipRemainingCommands = true;
                 return result;
             }
 
@@ -205,6 +208,7 @@ public class HealCommand : Command
         int healAmount = Mathf.Min(rawHeal, ctx.selectedTarget.MaxHp - ctx.selectedTarget.currentHP);
         ctx.selectedTarget.currentHP += healAmount;
         ctx.selectedTarget.UpdateHPUI();
+        ctx.battleManager.SpawnDamagePopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, healAmount, PopupType.Heal);
         BattleLog.Add($"[治疗] {ctx.attacker.unitName} 为 {ctx.selectedTarget.unitName} 恢复了 {healAmount} 点生命");
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(AudioKeys.SFX_HEAL);
@@ -232,6 +236,7 @@ public class ShieldCommand : Command
         }
 
         ctx.selectedTarget.shieldHP += shieldAmount;
+        ctx.battleManager.SpawnDamagePopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, shieldAmount, PopupType.Shield);
         BattleLog.Add($"[护盾] {ctx.attacker.unitName} 为 {ctx.selectedTarget.unitName} 附加了 {shieldAmount} 点护盾");
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(AudioKeys.SFX_SHIELD);
@@ -262,11 +267,15 @@ public class ConsumeResourceCommand : Command
         {
             if (amount >= 0)
             {
+                ctx.battleManager.SpawnDamagePopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, amount, PopupType.Stress);
                 StressManager.AddStress(ctx.selectedTarget, amount, StressTag.Combat);
                 StressManager.CheckResolve(ctx.selectedTarget, ctx.battleManager);
             }
             else
+            {
+                ctx.battleManager.SpawnTextPopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, $"-{-amount}", new Color(0.6f, 0.2f, 0.8f), 3f);
                 StressManager.ReduceStress(ctx.selectedTarget, -amount);
+            }
         }
 
         return result;
@@ -331,12 +340,15 @@ public class BloodthirstyStrikeCommand : Command
         int actualSelfDmg = Mathf.Min(selfDmg, attacker.currentHP - 1);
         attacker.currentHP -= actualSelfDmg;
         attacker.UpdateHPUI();
+        ctx.battleManager.SpawnDamagePopup(attacker.transform.position + Vector3.up * 1.5f, actualSelfDmg, PopupType.Damage);
         BattleLog.Add($"[自损] {attacker.unitName} 自损 {actualSelfDmg} 点生命");
 
         int healAmount = Mathf.RoundToInt(actualSelfDmg * lifeStealPercent);
         int actualHeal = Mathf.Min(healAmount, attacker.MaxHp - attacker.currentHP);
         attacker.currentHP += actualHeal;
         attacker.UpdateHPUI();
+        if (actualHeal > 0)
+            ctx.battleManager.SpawnDamagePopup(attacker.transform.position + Vector3.up * 1.5f, actualHeal, PopupType.Heal);
         BattleLog.Add($"[吸血] {attacker.unitName} 恢复了 {actualHeal} 点生命");
 
         return result;
@@ -410,6 +422,7 @@ public class MindShockCommand : Command
         {
             if (stressAmount > 0)
             {
+                ctx.battleManager.SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, stressAmount, PopupType.Stress);
                 StressManager.AddStress(target, stressAmount, StressTag.Combat);
                 StressManager.CheckResolve(target, ctx.battleManager);
             }
@@ -440,17 +453,22 @@ public class SelfInflictCommand : Command
             int dmg = Mathf.Min(amount, ctx.attacker.currentHP - 1);
             ctx.attacker.currentHP -= dmg;
             ctx.attacker.UpdateHPUI();
+            ctx.battleManager.SpawnDamagePopup(ctx.attacker.transform.position + Vector3.up * 1.5f, dmg, PopupType.Damage);
             BattleLog.Add($"[自损] {ctx.attacker.unitName} 损失 {dmg} 点生命");
         }
         else if (inflictType == SelfInflictType.Stress)
         {
             if (amount >= 0)
             {
+                ctx.battleManager.SpawnDamagePopup(ctx.attacker.transform.position + Vector3.up * 1.5f, amount, PopupType.Stress);
                 StressManager.AddStress(ctx.attacker, amount, StressTag.SelfHarm);
                 StressManager.CheckResolve(ctx.attacker, ctx.battleManager);
             }
             else
+            {
+                ctx.battleManager.SpawnTextPopup(ctx.attacker.transform.position + Vector3.up * 1.5f, $"-{-amount}", new Color(0.6f, 0.2f, 0.8f), 3f);
                 StressManager.ReduceStress(ctx.attacker, -amount);
+            }
         }
 
         return result;

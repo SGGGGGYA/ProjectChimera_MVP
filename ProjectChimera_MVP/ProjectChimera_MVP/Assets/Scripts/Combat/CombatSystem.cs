@@ -5,10 +5,10 @@ using UnityEngine;
 // 所有战斗交互公式的唯一入口，纯静态类，无 MonoBehaviour 依赖
 //
 // 【公式一览】
-//   1. ACC 命中率 = 90% + (attackerACC - targetDOD) × 1%
-//      范围: [5%, 98%]
+//   1. ACC 命中率 = 75% + (attackerACC - targetDOD) × 0.3%
+//      范围: [10%, 95%]
 //
-//   2. CRT 暴击率 = 5% + attackerCRT × 1%
+//   2. CRT 暴击率 = 3% + attackerCRT × 0.5%
 //      范围: [1%, 50%]
 //
 //   3. 状态命中率 = baseChance + attackerINT × 1%
@@ -32,10 +32,10 @@ public static class CombatSystem
     /// </summary>
     public static bool IsHit(UnitData attacker, UnitData target)
     {
-        float baseHitChance = 0.90f;
+        float baseHitChance = 0.75f;
         int attackerACC = attacker.ACC;
         int targetDOD = target.DOD;
-        float finalChance = Mathf.Clamp(baseHitChance + (attackerACC - targetDOD) * 0.01f, 0.05f, 0.98f);
+        float finalChance = Mathf.Clamp(baseHitChance + (attackerACC - targetDOD) * 0.003f, 0.10f, 0.95f);
         return Random.value < finalChance;
     }
 
@@ -44,9 +44,9 @@ public static class CombatSystem
     /// </summary>
     public static bool IsCrit(UnitData attacker, UnitData target)
     {
-        float baseCrit = 0.05f;
+        float baseCrit = 0.03f;
         int attackerCRT = attacker.CRT;
-        float finalCrit = Mathf.Clamp(baseCrit + attackerCRT * 0.01f, 0.01f, 0.50f);
+        float finalCrit = Mathf.Clamp(baseCrit + attackerCRT * 0.005f, 0.01f, 0.50f);
         return Random.value < finalCrit;
     }
 

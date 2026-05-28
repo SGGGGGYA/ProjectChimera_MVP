@@ -15,9 +15,9 @@ public struct DerivedAttributes
     {
         maxHP = primary.VIT * 5 + classBaseHP;
         SPD = primary.AGI * 2 + classBaseSPD;
-        ACC = 80 + primary.AGI * 2;
-        DOD = Mathf.RoundToInt(primary.AGI * 1.5f);
+        ACC = 20 + primary.AGI * 5;
+        DOD = Mathf.RoundToInt(primary.AGI * 2f);
         DEF = baseDefense;
-        CRT = primary.AGI / 10;
+        CRT = Mathf.RoundToInt(primary.AGI * 1.5f);
     }
 }

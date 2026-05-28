@@ -75,6 +75,7 @@ public static class StressManager
             unit.stress = config.afflictionResetValue;
             unit.breakdownState = BreakdownState.None;
             BattleLog.Add($"<color=orange>【心脏衰竭抵抗】{unit.unitName} 凭借意志抵抗了心脏衰竭，压力回落到 {config.afflictionResetValue}！</color>");
+            bm.SpawnTextPopup(unit.transform.position + Vector3.up * 2f, "抵抗!", Color.yellow, 4f);
         }
         else
         {
@@ -82,6 +83,7 @@ public static class StressManager
             unit.currentHP -= damage;
             unit.UpdateHPUI();
             BattleLog.Add($"<color=red>【心脏衰竭】{unit.unitName} 心脏不堪重负，受到 {damage} 点致命伤害！</color>");
+            bm.SpawnTextPopup(unit.transform.position + Vector3.up * 2f, "心脏衰竭!", Color.red, 5f);
             if (unit.currentHP <= 0)
             {
                 unit.currentHP = 0;
@@ -121,6 +123,15 @@ public static class StressManager
             unit.stress = config.afflictionResetValue;
 
         BattleLog.Add($"<color={(isVirtue ? "#44ff44" : "#ff4444")}>【{(isVirtue ? "美德" : "折磨")}】{unit.unitName} 触发 [{entry.displayName}]！{entry.description}</color>");
+
+        if (bm != null)
+        {
+            Vector3 pos = unit.transform.position + Vector3.up * 2f;
+            if (isVirtue)
+                bm.SpawnTextPopup(pos, entry.displayName, Color.green, 5f);
+            else
+                bm.SpawnTextPopup(pos, entry.displayName, Color.red, 5f);
+        }
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(isVirtue ? AudioKeys.SFX_VIRTUE : AudioKeys.SFX_BREAKDOWN);
@@ -179,6 +190,8 @@ public static class StressManager
                 int heal = Mathf.Min(dmg, unit.MaxHp - unit.currentHP);
                 unit.currentHP += heal;
                 unit.UpdateHPUI();
+                if (heal > 0)
+                    bm.SpawnDamagePopup(unit.transform.position + Vector3.up * 1.5f, heal, PopupType.Heal);
                 BattleLog.Add($"[自愈] {unit.unitName} 恢复了 {heal} 点生命");
             }
         }

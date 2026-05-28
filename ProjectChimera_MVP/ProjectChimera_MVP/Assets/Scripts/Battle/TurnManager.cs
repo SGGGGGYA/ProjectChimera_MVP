@@ -39,10 +39,10 @@ public class TurnManager : MonoBehaviour
         turnOrder = new List<UnitData>(allUnits);
         turnOrder.Sort((a, b) => b.AGI.CompareTo(a.AGI));
 
-        Debug.Log("[TurnManager] 回合顺序（按AGI排序）：");
+        Log.Info("[TurnManager] 回合顺序（按AGI排序）：");
         for (int i = 0; i < turnOrder.Count; i++)
         {
-            Debug.Log($"{i + 1}. {turnOrder[i].unitName} (AGI: {turnOrder[i].AGI})");
+            Log.Info($"{i + 1}. {turnOrder[i].unitName} (AGI: {turnOrder[i].AGI})");
         }
     }
 
@@ -88,10 +88,15 @@ public class TurnManager : MonoBehaviour
         }
 
         // 处理流血（回合开始时扣血，可能触发压力事件）
+        StatusEffect bleedStatus = currentUnit.GetStatus(StatusType.Bleed);
+        int bleedDmg = bleedStatus != null ? Mathf.RoundToInt(bleedStatus.value) : 0;
         bool alive = currentUnit.ProcessBleed();
+        if (bleedDmg > 0 && alive)
+            bm?.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, bleedDmg, PopupType.Damage);
         if (!alive)
         {
             BattleLog.Add($"{currentUnit.unitName} 因流血而死亡！");
+            bm?.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, 0, PopupType.Damage);
             BattleManager bmCheck = FindObjectOfType<BattleManager>();
             if (bmCheck != null)
             {
@@ -162,7 +167,7 @@ public class TurnManager : MonoBehaviour
 
     public void EndTurn()
     {
-        Debug.Log($"[TurnManager] {currentUnit.unitName} 结束回合");
+        Log.Info($"[TurnManager] {currentUnit.unitName} 结束回合");
         currentUnit.TickStatusEffects();
         currentUnit.TickQuirkCooldowns();
         StressManager.TickBreakdown(currentUnit);

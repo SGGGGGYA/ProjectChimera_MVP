@@ -23,23 +23,31 @@ public class MainMenu : MonoBehaviour
         if (continueButtonObj != null)
             continueButtonObj.SetActive(hasSave);
 
-        // 注：按钮已通过 Inspector 绑定，不在此重复 AddListener
+#if UNITY_EDITOR
+        // Editor 多场景 Play 模式卸掉非主菜单场景
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            var s = SceneManager.GetSceneAt(i);
+            if (s.name != "MainMenu")
+                SceneManager.UnloadSceneAsync(s);
+        }
+#endif
     }
 
     public void OnClickNewGame()
     {
-        Debug.Log("[主菜单] play 按钮被点击了！正在尝试跳转...");
+        Log.Info("[主菜单] play 按钮被点击了！正在尝试跳转...");
         SaveManager.DeleteSave();
         EnsureGameManager();
-        SceneManager.LoadScene("WorldMap");
+        GameManager.LoadSceneClean("WorldMap");
     }
 
     public void OnClickContinue()
     {
-        Debug.Log("[主菜单] continue 按钮被点击了！正在尝试读档...");
+        Log.Info("[主菜单] continue 按钮被点击了！正在尝试读档...");
         EnsureGameManager();
         GameManager.Instance.LoadGame();
-        SceneManager.LoadScene("WorldMap");
+        GameManager.LoadSceneClean("WorldMap");
     }
 
     void EnsureGameManager()

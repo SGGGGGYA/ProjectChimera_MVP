@@ -36,7 +36,7 @@ public class UIUnitInfoController : MonoBehaviour
     {
         if (unit == null)
         {
-            Debug.LogWarning("[UIUnitInfo] 收到 null 单位数据，忽略");
+            Log.Warn("[UIUnitInfo] 收到 null 单位数据，忽略");
             return;
         }
         currentDisplayed = unit;
@@ -57,18 +57,18 @@ public class UIUnitInfoController : MonoBehaviour
         if (currentDisplayed == null) return;
         if (container == null)
         {
-            Debug.LogWarning("[UIUnitInfo] container 未绑定，无法刷新");
+            Log.Warn("[UIUnitInfo] container 未绑定，无法刷新");
             return;
         }
         if (infoRowPrefab == null)
         {
-            Debug.LogWarning("[UIUnitInfo] infoRowPrefab 未绑定，无法刷新");
+            Log.Warn("[UIUnitInfo] infoRowPrefab 未绑定，无法刷新");
             return;
         }
 
         var lines = new List<string>();
 
-        string classTag = currentDisplayed.isPlayer ? "⚔️ 己方" : "👹 敌方";
+        string classTag = currentDisplayed.isPlayer ? "己方" : "敌方";
         lines.Add($"<b>{classTag}</b>");
         lines.Add($"<size=130%><b>{currentDisplayed.unitName}</b></size>");
         lines.Add($"等级: {currentDisplayed.level}");
@@ -84,7 +84,7 @@ public class UIUnitInfoController : MonoBehaviour
         lines.Add($"  <color={hpBarColor}>{hpBar}</color>");
 
         if (currentDisplayed.shieldHP > 0)
-            lines.Add($"🛡️ 护盾: {currentDisplayed.shieldHP}");
+            lines.Add($"护盾: {currentDisplayed.shieldHP}");
 
         // 压力
         lines.Add($"");

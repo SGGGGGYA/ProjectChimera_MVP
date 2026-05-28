@@ -32,6 +32,7 @@ public class UIRecruitController : MonoBehaviour
             cgo.AddComponent<CanvasScaler>();
             cgo.AddComponent<GraphicRaycaster>();
         }
+        UIFonts.EnsureEventSystem();
 
         var root = new GameObject("RecruitPanel", typeof(RectTransform));
         root.layer = 5;
@@ -214,7 +215,7 @@ public class UIRecruitController : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null || gm.playerTeamData.Count >= 4) return;
-        if (gm.gold < 50) { Debug.Log("金币不足"); return; }
+        if (gm.gold < 50) { Log.Info("金币不足"); return; }
 
         gm.gold -= 50;
         var data = MakeUnitData(def);
@@ -226,7 +227,7 @@ public class UIRecruitController : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null) return;
-        if (gm.gold < 50) { Debug.Log("金币不足"); return; }
+        if (gm.gold < 50) { Log.Info("金币不足"); return; }
 
         gm.gold -= 50;
         // 找到同职业的替换，否则替换最后一名

@@ -42,11 +42,11 @@ public static class SaveManager
             data.timestamp = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             string json = JsonUtility.ToJson(data, prettyPrint: true);
             File.WriteAllText(SavePath, json);
-            Debug.Log($"[存档] 已保存到 {SavePath}");
+            Log.Info($"[存档] 已保存到 {SavePath}");
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[存档] 保存失败: {e.Message}");
+            Log.Error($"[存档] 保存失败: {e.Message}");
         }
     }
 
@@ -60,12 +60,12 @@ public static class SaveManager
 
             string json = File.ReadAllText(SavePath);
             SaveData data = JsonUtility.FromJson<SaveData>(json);
-            Debug.Log($"[存档] 已读取存档 ({data?.timestamp})");
+            Log.Info($"[存档] 已读取存档 ({data?.timestamp})");
             return data;
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[存档] 读取失败: {e.Message}");
+            Log.Error($"[存档] 读取失败: {e.Message}");
             return null;
         }
     }
@@ -82,7 +82,7 @@ public static class SaveManager
         if (File.Exists(SavePath))
         {
             File.Delete(SavePath);
-            Debug.Log("[存档] 已删除");
+            Log.Info("[存档] 已删除");
         }
     }
 }

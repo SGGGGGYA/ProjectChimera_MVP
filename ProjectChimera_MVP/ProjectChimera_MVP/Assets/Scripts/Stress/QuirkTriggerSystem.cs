@@ -103,7 +103,7 @@ public static class QuirkTriggerSystem
                 break;
 
             default:
-                Debug.LogWarning($"[QuirkTriggerSystem] 未知特质 ID: {quirk.id}");
+                Log.Warn($"[QuirkTriggerSystem] 未知特质 ID: {quirk.id}");
                 break;
         }
     }

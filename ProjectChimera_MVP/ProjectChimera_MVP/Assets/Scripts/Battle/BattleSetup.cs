@@ -186,7 +186,7 @@ public class BattleSetup : MonoBehaviour
 
     void Awake()
     {
-        Debug.Log("[BattleSetup] Awake 开始执行...");
+        Log.Info("[BattleSetup] Awake 开始执行...");
 
         // 获取队伍数据（优先用 GameManager，没有则用默认调试数据）
         List<UnitBattleData> playerTeamData;
@@ -198,12 +198,12 @@ public class BattleSetup : MonoBehaviour
             GameManager.Instance.playerTeamData.Count > 0)
         {
             playerTeamData = GameManager.Instance.playerTeamData;
-            Debug.Log("[BattleSetup] 使用 GameManager 的玩家数据");
+            Log.Info("[BattleSetup] 使用 GameManager 的玩家数据");
         }
         else
         {
             playerTeamData = GetDefaultPlayerTeam();
-            Debug.Log("[BattleSetup] 无 GameManager，使用默认玩家数据");
+            Log.Info("[BattleSetup] 无 GameManager，使用默认玩家数据");
         }
 
         // 敌人数据：优先使用 GameManager 预设的模板，否则随机生成
@@ -213,12 +213,12 @@ public class BattleSetup : MonoBehaviour
         {
             enemyTeamData = GameManager.Instance.enemyTeamData;
             GameManager.Instance.enemyTeamData = null;
-            Debug.Log($"[BattleSetup] 使用 GameManager 预设敌人数据 ({enemyTeamData.Count}人)");
+            Log.Info($"[BattleSetup] 使用 GameManager 预设敌人数据 ({enemyTeamData.Count}人)");
         }
         else
         {
             enemyTeamData = GetFullEnemyTeam();
-            Debug.Log($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} ({enemyTeamData.Count}人)");
+            Log.Info($"[BattleSetup] 随机遭遇 - {enemyTeamData[0].unitName} ({enemyTeamData.Count}人)");
         }
 
         // 创建所有玩家单位（前排在中间、后排两侧）
@@ -237,7 +237,7 @@ public class BattleSetup : MonoBehaviour
                 playerUnits.Add(unit);
             }
             else
-                Debug.LogError($"[BattleSetup] 玩家 {playerTeamData[i].unitName} 生成失败");
+                Log.Error($"[BattleSetup] 玩家 {playerTeamData[i].unitName} 生成失败");
         }
 
         // 创建所有敌人单位（前排在中间、后排两侧）
@@ -256,10 +256,10 @@ public class BattleSetup : MonoBehaviour
                 enemyUnits.Add(unit);
             }
             else
-                Debug.LogError($"[BattleSetup] 敌人 {enemyTeamData[i].unitName} 生成失败");
+                Log.Error($"[BattleSetup] 敌人 {enemyTeamData[i].unitName} 生成失败");
         }
 
-        Debug.Log($"[BattleSetup] 创建完成 - 玩家:{playerUnits.Count}人, 敌人:{enemyUnits.Count}人");
+        Log.Info($"[BattleSetup] 创建完成 - 玩家:{playerUnits.Count}人, 敌人:{enemyUnits.Count}人");
 
         // 设置 BattleManager（如果场景没放，自动创建一个）
         BattleManager bm = FindObjectOfType<BattleManager>();
@@ -267,11 +267,11 @@ public class BattleSetup : MonoBehaviour
         {
             GameObject bmGO = new GameObject("BattleManager");
             bm = bmGO.AddComponent<BattleManager>();
-            Debug.Log("[BattleSetup] 自动创建了 BattleManager");
+            Log.Info("[BattleSetup] 自动创建了 BattleManager");
         }
         bm.playerUnits = playerUnits;
         bm.enemyUnits = enemyUnits;
-        Debug.Log("[BattleSetup] BattleManager 编队设置完成");
+        Log.Info("[BattleSetup] BattleManager 编队设置完成");
 
         // 初始化回合制（如果场景没放 TurnManager，自动创建一个）
         TurnManager tm = FindObjectOfType<TurnManager>();
@@ -279,10 +279,10 @@ public class BattleSetup : MonoBehaviour
         {
             GameObject tmGO = new GameObject("TurnManager");
             tm = tmGO.AddComponent<TurnManager>();
-            Debug.Log("[BattleSetup] 自动创建了 TurnManager");
+            Log.Info("[BattleSetup] 自动创建了 TurnManager");
         }
         tm.InitializeBattle(playerUnits, enemyUnits);
-        Debug.Log("[BattleSetup] TurnManager 初始化完成");
+        Log.Info("[BattleSetup] TurnManager 初始化完成");
     }
 
     /// <summary>
@@ -311,7 +311,7 @@ public class BattleSetup : MonoBehaviour
         // 检查万能预制体
         if (universalCharacterPrefab == null)
         {
-            Debug.LogError($"[BattleSetup] universalCharacterPrefab 未绑定！无法生成 {data.unitName}");
+            Log.Error($"[BattleSetup] universalCharacterPrefab 未绑定！无法生成 {data.unitName}");
             return null;
         }
 
@@ -324,7 +324,7 @@ public class BattleSetup : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[BattleSetup] 克隆预制体失败: {e.Message}");
+            Log.Error($"[BattleSetup] 克隆预制体失败: {e.Message}");
             return null;
         }
 
@@ -355,11 +355,11 @@ public class BattleSetup : MonoBehaviour
                             try
                             {
                                 skeleton.Initialize(true);
-                                Debug.Log($"[Spine] {data.unitName} 加载骨骼: {entry.skeletonDataAsset.name}");
+                                Log.Info($"[Spine] {data.unitName} 加载骨骼: {entry.skeletonDataAsset.name}");
                             }
                             catch (System.Exception ex)
                             {
-                                Debug.LogWarning($"[Spine] {data.unitName} Initialize 失败: {ex.Message}");
+                                Log.Warn($"[Spine] {data.unitName} Initialize 失败: {ex.Message}");
                             }
                             skeletonAssigned = true;
                             break;
@@ -369,7 +369,7 @@ public class BattleSetup : MonoBehaviour
 
                 if (!skeletonAssigned)
                 {
-                    Debug.LogWarning($"[Spine] {data.unitName} 未找到对应的 SkeletonDataAsset，使用默认外观");
+                    Log.Warn($"[Spine] {data.unitName} 未找到对应的 SkeletonDataAsset，使用默认外观");
                 }
 
                 // 阵营调色（Spine 3.6 API）
@@ -406,7 +406,7 @@ public class BattleSetup : MonoBehaviour
 
         if (go == null)
         {
-            Debug.LogError($"[BattleSetup] {data.unitName} 的 GameObject 为 null，无法初始化 UnitData");
+            Log.Error($"[BattleSetup] {data.unitName} 的 GameObject 为 null，无法初始化 UnitData");
             return null;
         }
 
@@ -472,7 +472,7 @@ public class BattleSetup : MonoBehaviour
                 prefab = Resources.Load<GameObject>(path);
                 if (prefab != null)
                 {
-                    Debug.Log($"[HPBar] 通过 Resources.Load(\"{path}\") 自动加载了 HPBar 预制体");
+                    Log.Info($"[HPBar] 通过 Resources.Load(\"{path}\") 自动加载了 HPBar 预制体");
                     break;
                 }
             }
@@ -480,7 +480,7 @@ public class BattleSetup : MonoBehaviour
 
         if (prefab == null)
         {
-            Debug.LogError("[HPBar] hpBarPrefab 未绑定，且 Resources.Load 也未找到！" +
+            Log.Error("[HPBar] hpBarPrefab 未绑定，且 Resources.Load 也未找到！" +
                            $"请将 HPBar 预制体放到 Assets/Resources/ 目录下，或在 Inspector 中拖拽绑定。" +
                            $"当前预制体实际位置：Assets/Prefabs/UI/HPBar.prefab（可将其移到 Resources 文件夹下）");
             return;
@@ -492,12 +492,12 @@ public class BattleSetup : MonoBehaviour
         {
             canvas = FindObjectOfType<Canvas>();
             if (canvas != null)
-                Debug.Log("[HPBar] 通过 FindObjectOfType 自动找到了场景中的 Canvas");
+                Log.Info("[HPBar] 通过 FindObjectOfType 自动找到了场景中的 Canvas");
         }
 
         if (canvas == null)
         {
-            Debug.LogError("[HPBar] battleCanvas 未绑定，且场景中找不到 Canvas！");
+            Log.Error("[HPBar] battleCanvas 未绑定，且场景中找不到 Canvas！");
             return;
         }
 
@@ -507,7 +507,7 @@ public class BattleSetup : MonoBehaviour
         HPBarFollower follower = bar.GetComponent<HPBarFollower>();
         if (follower == null)
         {
-            Debug.LogError($"[HPBar] HPBar 预制体上找不到 HPBarFollower 脚本！请检查预制体");
+            Log.Error($"[HPBar] HPBar 预制体上找不到 HPBarFollower 脚本！请检查预制体");
             return;
         }
 

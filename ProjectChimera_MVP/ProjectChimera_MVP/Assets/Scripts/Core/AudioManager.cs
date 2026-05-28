@@ -53,7 +53,7 @@ public class AudioManager : MonoBehaviour
             else
                 sfxClips[name] = clip;
         }
-        Debug.Log($"[AudioManager] 已加载 {sfxClips.Count} 个音效, {bgmClips.Count} 个BGM");
+        Log.Info($"[AudioManager] 已加载 {sfxClips.Count} 个音效, {bgmClips.Count} 个BGM");
     }
 
     public void PlayBGM(string clipName, float volume = -1f)
@@ -71,7 +71,7 @@ public class AudioManager : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[Audio] BGM 播放: {key} (资源未找到，静默跳过)");
+            Log.Info($"[Audio] BGM 播放: {key} (资源未找到，静默跳过)");
         }
     }
 
@@ -88,7 +88,7 @@ public class AudioManager : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[Audio] SFX 播放: {key} (资源未找到，静默跳过)");
+            Log.Info($"[Audio] SFX 播放: {key} (资源未找到，静默跳过)");
         }
     }
 

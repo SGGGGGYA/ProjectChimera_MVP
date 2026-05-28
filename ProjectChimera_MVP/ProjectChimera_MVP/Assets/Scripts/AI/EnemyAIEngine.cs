@@ -47,7 +47,7 @@ public static class EnemyAIEngine
     public static IEnumerator ExecuteTurn(
         UnitData unit, BattleManager bm, TurnManager tm, System.Action endTurn)
     {
-        Debug.Log($"[AI] {unit.unitName} 思考中...");
+        Log.Info($"[AI] {unit.unitName} 思考中...");
 
         var profile = GetProfile(unit);
 

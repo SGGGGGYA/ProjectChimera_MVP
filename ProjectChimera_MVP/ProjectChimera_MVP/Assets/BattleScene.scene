@@ -316,6 +316,7 @@ MonoBehaviour:
   - unitName: "\u54E5\u5E03\u6797\u8428\u6EE1"
     skeletonDataAsset: {fileID: 11400000, guid: 0dea90862368d704abe322e7e58d8ec6, type: 2}
   hpBarPrefab: {fileID: 2643491121137418284, guid: 8fde2610779884d4d900f382a9a65957, type: 3}
+  stressBarPrefab: {fileID: 0}
   battleCanvas: {fileID: 1511151713}
 --- !u!4 &258447943
 Transform:
@@ -773,6 +774,9 @@ MonoBehaviour:
   scrollRect: {fileID: 516833433}
   logText: {fileID: 1757158415}
   maxLines: 20
+  expandedArea: {fileID: 0}
+  toggleButton: {fileID: 0}
+  toggleLabel: {fileID: 0}
 --- !u!1 &603580700
 GameObject:
   m_ObjectHideFlags: 0
@@ -2407,7 +2411,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5dd38ccc14977a40a92627c25834e49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damagePopupPrefab: {fileID: 0}
+  damagePopupPrefab: {fileID: 4437275349150782439, guid: 5e8d1c3d388f10645a1da34ab1744201, type: 3}
   playerUnits: []
   enemyUnits: []
   jumpHeight: 0.3
