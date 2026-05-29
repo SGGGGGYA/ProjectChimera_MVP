@@ -7,13 +7,13 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/MainMenu.scene
-    guid: 2c8c50464859ba64b9c9bc9ea1319bbe
+    guid: DSkX5i+tV32R9ybCY7NnlmIUJhGXR7p//kq/Fi7QhIays5loMuVwHBE=
   - enabled: 1
     path: Assets/WorldMap.scene
-    guid: efc3818f5cac6204b9a9dd217b70f1d9
+    guid: WixMtiKsWy25UAXDf2qHjlfcgqJkullPSdo+Zm8MliFisrrCc7RTQVA=
   - enabled: 1
     path: Assets/BattleScene.scene
-    guid: 3d05b80cd6b716643bff9321ade41714
+    guid: DC4fsHilUyjsydleh8z6xhW2UIArRzzUNM0u7AgiPNrOD9PBlrwh9uk=
   m_BuildProfiles: []
   m_configObjects: {}
   m_SlimFeaturesWeixinMiniGame:
