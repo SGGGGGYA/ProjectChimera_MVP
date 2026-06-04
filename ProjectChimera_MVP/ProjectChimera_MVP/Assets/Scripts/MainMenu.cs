@@ -18,6 +18,10 @@ public class MainMenu : MonoBehaviour
 
     void Start()
     {
+        EnsureAudioManager();
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioKeys.BGM_MENU);
+
         // 有存档才显示"继续游戏"按钮
         bool hasSave = SaveManager.HasSave();
         if (continueButtonObj != null)
@@ -36,6 +40,7 @@ public class MainMenu : MonoBehaviour
 
     public void OnClickNewGame()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK);
         Log.Info("[主菜单] play 按钮被点击了！正在尝试跳转...");
         SaveManager.DeleteSave();
         EnsureGameManager();
@@ -44,6 +49,7 @@ public class MainMenu : MonoBehaviour
 
     public void OnClickContinue()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK);
         Log.Info("[主菜单] continue 按钮被点击了！正在尝试读档...");
         EnsureGameManager();
         GameManager.Instance.LoadGame();
@@ -56,6 +62,15 @@ public class MainMenu : MonoBehaviour
         {
             GameObject gmGO = new GameObject("GameManager");
             gmGO.AddComponent<GameManager>();
+        }
+    }
+
+    void EnsureAudioManager()
+    {
+        if (AudioManager.Instance == null)
+        {
+            GameObject amGO = new GameObject("AudioManager");
+            amGO.AddComponent<AudioManager>();
         }
     }
 }

@@ -70,10 +70,12 @@ public class UIDungeonMapController : MonoBehaviour
         currentMap = session.currentMap;
         RefreshMap();
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
     }
 
@@ -272,7 +274,7 @@ public class UIDungeonMapController : MonoBehaviour
         btn.interactable = isAccessible && !node.visited;
         if (btn.interactable)
         {
-            btn.onClick.AddListener(() => OnNodeClicked(nodeIndex));
+            btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnNodeClicked(nodeIndex); });
         }
 
         if (node.visited)
@@ -449,6 +451,107 @@ public class UIDungeonMapController : MonoBehaviour
 
     // ========== Reusable UI Helpers ==========
 
+    void ShowConfirmPanel(string title, string message, string confirmText, string cancelText,
+        UnityEngine.Events.UnityAction onConfirm, UnityEngine.Events.UnityAction onCancel)
+    {
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null) return;
+
+        var overlay = new GameObject("ConfirmOverlay", typeof(RectTransform));
+        overlay.layer = 5;
+        overlay.transform.SetParent(canvas.transform, false);
+        var ort = overlay.GetComponent<RectTransform>();
+        ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one;
+        ort.offsetMin = Vector2.zero; ort.offsetMax = Vector2.zero;
+        var oimg = overlay.AddComponent<Image>();
+        oimg.color = new Color(0, 0, 0, 0.6f);
+
+        var popup = new GameObject("ConfirmPopup", typeof(RectTransform));
+        popup.layer = 5;
+        popup.transform.SetParent(overlay.transform, false);
+        var prt = popup.GetComponent<RectTransform>();
+        prt.anchorMin = new Vector2(0.5f, 0.5f);
+        prt.anchorMax = new Vector2(0.5f, 0.5f);
+        prt.pivot = new Vector2(0.5f, 0.5f);
+        prt.sizeDelta = new Vector2(350, 200);
+        prt.anchoredPosition = Vector2.zero;
+        var pimg = popup.AddComponent<Image>();
+        pimg.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+
+        var titleObj = new GameObject("Title", typeof(RectTransform));
+        titleObj.layer = 5;
+        titleObj.transform.SetParent(popup.transform, false);
+        var trt = titleObj.GetComponent<RectTransform>();
+        trt.anchorMin = new Vector2(0.5f, 1);
+        trt.anchorMax = new Vector2(0.5f, 1);
+        trt.pivot = new Vector2(0.5f, 1);
+        trt.sizeDelta = new Vector2(300, 30);
+        trt.anchoredPosition = new Vector2(0, -12);
+        var ttmp = titleObj.AddComponent<TextMeshProUGUI>();
+        ttmp.text = title;
+        ttmp.fontSize = 20;
+        ttmp.alignment = TextAlignmentOptions.Center;
+        ttmp.color = Color.yellow;
+        UIFonts.Apply(ttmp);
+
+        var msgObj = new GameObject("Message", typeof(RectTransform));
+        msgObj.layer = 5;
+        msgObj.transform.SetParent(popup.transform, false);
+        var mrt = msgObj.GetComponent<RectTransform>();
+        mrt.anchorMin = new Vector2(0.5f, 0.5f);
+        mrt.anchorMax = new Vector2(0.5f, 0.5f);
+        mrt.pivot = new Vector2(0.5f, 0.5f);
+        mrt.sizeDelta = new Vector2(300, 80);
+        mrt.anchoredPosition = Vector2.zero;
+        var mtmp = msgObj.AddComponent<TextMeshProUGUI>();
+        mtmp.text = message;
+        mtmp.fontSize = 16;
+        mtmp.alignment = TextAlignmentOptions.Center;
+        mtmp.color = Color.white;
+        UIFonts.Apply(mtmp);
+
+        var confirmBtn = CreateButtonObj(popup, "ConfirmBtn", new Color(0.3f, 0.5f, 0.3f));
+        var crt = confirmBtn.GetComponent<RectTransform>();
+        crt.anchorMin = new Vector2(0.3f, 0);
+        crt.anchorMax = new Vector2(0.3f, 0);
+        crt.pivot = new Vector2(0.5f, 0.5f);
+        crt.sizeDelta = new Vector2(110, 32);
+        crt.anchoredPosition = new Vector2(0, 20);
+        var ctmp = confirmBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (ctmp != null) ctmp.text = confirmText;
+        var cbtn = confirmBtn.GetComponent<Button>();
+        cbtn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Destroy(overlay); onConfirm(); });
+
+        if (onCancel != null)
+        {
+            var cancelBtn = CreateButtonObj(popup, "CancelBtn", new Color(0.3f, 0.2f, 0.2f));
+            var crt2 = cancelBtn.GetComponent<RectTransform>();
+            crt2.anchorMin = new Vector2(0.7f, 0);
+            crt2.anchorMax = new Vector2(0.7f, 0);
+            crt2.pivot = new Vector2(0.5f, 0.5f);
+            crt2.sizeDelta = new Vector2(110, 32);
+            crt2.anchoredPosition = new Vector2(0, 20);
+            var ctmp2 = cancelBtn.GetComponentInChildren<TextMeshProUGUI>();
+            if (ctmp2 != null) ctmp2.text = cancelText;
+            var cbtn2 = cancelBtn.GetComponent<Button>();
+            cbtn2.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Destroy(overlay); onCancel(); });
+        }
+        else
+        {
+            var okBtn = CreateButtonObj(popup, "OK", new Color(0.3f, 0.3f, 0.3f));
+            var ortb = okBtn.GetComponent<RectTransform>();
+            ortb.anchorMin = new Vector2(0.5f, 0);
+            ortb.anchorMax = new Vector2(0.5f, 0);
+            ortb.pivot = new Vector2(0.5f, 0.5f);
+            ortb.sizeDelta = new Vector2(100, 32);
+            ortb.anchoredPosition = new Vector2(0, 20);
+            var otmp = okBtn.GetComponentInChildren<TextMeshProUGUI>();
+            if (otmp != null) otmp.text = cancelText;
+            var obtn = okBtn.GetComponent<Button>();
+            obtn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Destroy(overlay); });
+        }
+    }
+
     void ShowInfoPanel(string title, string message)
     {
         var canvas = FindObjectOfType<Canvas>();
@@ -517,110 +620,7 @@ public class UIDungeonMapController : MonoBehaviour
         var btmp = btnObj.GetComponentInChildren<TextMeshProUGUI>();
         if (btmp != null) btmp.text = "确定";
         var btn = btnObj.GetComponent<Button>();
-        btn.onClick.AddListener(() => Destroy(overlay));
-    }
-
-    void ShowConfirmPanel(string title, string message, string confirmText, string cancelText, System.Action onConfirm, System.Action onCancel)
-    {
-        var canvas = FindObjectOfType<Canvas>();
-        if (canvas == null) return;
-
-        var overlay = new GameObject("ConfirmOverlay", typeof(RectTransform));
-        overlay.layer = 5;
-        overlay.transform.SetParent(canvas.transform, false);
-        var ort = overlay.GetComponent<RectTransform>();
-        ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one;
-        ort.offsetMin = Vector2.zero; ort.offsetMax = Vector2.zero;
-        var oimg = overlay.AddComponent<Image>();
-        oimg.color = new Color(0, 0, 0, 0.6f);
-
-        var popup = new GameObject("ConfirmPopup", typeof(RectTransform));
-        popup.layer = 5;
-        popup.transform.SetParent(overlay.transform, false);
-        var prt = popup.GetComponent<RectTransform>();
-        prt.anchorMin = new Vector2(0.5f, 0.5f);
-        prt.anchorMax = new Vector2(0.5f, 0.5f);
-        prt.pivot = new Vector2(0.5f, 0.5f);
-        prt.sizeDelta = new Vector2(380, 240);
-        prt.anchoredPosition = Vector2.zero;
-        var pimg = popup.AddComponent<Image>();
-        pimg.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
-
-        var titleObj = new GameObject("Title", typeof(RectTransform));
-        titleObj.layer = 5;
-        titleObj.transform.SetParent(popup.transform, false);
-        var trt = titleObj.GetComponent<RectTransform>();
-        trt.anchorMin = new Vector2(0.5f, 1);
-        trt.anchorMax = new Vector2(0.5f, 1);
-        trt.pivot = new Vector2(0.5f, 1);
-        trt.sizeDelta = new Vector2(340, 30);
-        trt.anchoredPosition = new Vector2(0, -12);
-        var ttmp = titleObj.AddComponent<TextMeshProUGUI>();
-        ttmp.text = title;
-        ttmp.fontSize = 20;
-        ttmp.alignment = TextAlignmentOptions.Center;
-        ttmp.color = Color.yellow;
-        UIFonts.Apply(ttmp);
-
-        var msgObj = new GameObject("Message", typeof(RectTransform));
-        msgObj.layer = 5;
-        msgObj.transform.SetParent(popup.transform, false);
-        var mrt = msgObj.GetComponent<RectTransform>();
-        mrt.anchorMin = new Vector2(0.5f, 0.5f);
-        mrt.anchorMax = new Vector2(0.5f, 0.5f);
-        mrt.pivot = new Vector2(0.5f, 0.5f);
-        mrt.sizeDelta = new Vector2(340, 100);
-        mrt.anchoredPosition = Vector2.zero;
-        var mtmp = msgObj.AddComponent<TextMeshProUGUI>();
-        mtmp.text = message;
-        mtmp.fontSize = 16;
-        mtmp.alignment = TextAlignmentOptions.Center;
-        mtmp.color = Color.white;
-        UIFonts.Apply(mtmp);
-
-        if (onConfirm != null)
-        {
-            var confirmBtn = CreateButtonObj(popup, "ConfirmBtn", new Color(0.2f, 0.4f, 0.2f));
-            var crt = confirmBtn.GetComponent<RectTransform>();
-            crt.anchorMin = new Vector2(0.3f, 0);
-            crt.anchorMax = new Vector2(0.3f, 0);
-            crt.pivot = new Vector2(0.5f, 0.5f);
-            crt.sizeDelta = new Vector2(110, 32);
-            crt.anchoredPosition = new Vector2(0, 20);
-            var ctmp = confirmBtn.GetComponentInChildren<TextMeshProUGUI>();
-            if (ctmp != null) ctmp.text = confirmText;
-            var cbtn = confirmBtn.GetComponent<Button>();
-            cbtn.onClick.AddListener(() => { Destroy(overlay); onConfirm(); });
-        }
-
-        if (onCancel != null)
-        {
-            var cancelBtn = CreateButtonObj(popup, "CancelBtn", new Color(0.3f, 0.2f, 0.2f));
-            var crt2 = cancelBtn.GetComponent<RectTransform>();
-            crt2.anchorMin = new Vector2(0.7f, 0);
-            crt2.anchorMax = new Vector2(0.7f, 0);
-            crt2.pivot = new Vector2(0.5f, 0.5f);
-            crt2.sizeDelta = new Vector2(110, 32);
-            crt2.anchoredPosition = new Vector2(0, 20);
-            var ctmp2 = cancelBtn.GetComponentInChildren<TextMeshProUGUI>();
-            if (ctmp2 != null) ctmp2.text = cancelText;
-            var cbtn2 = cancelBtn.GetComponent<Button>();
-            cbtn2.onClick.AddListener(() => { Destroy(overlay); onCancel(); });
-        }
-        else
-        {
-            var okBtn = CreateButtonObj(popup, "OK", new Color(0.3f, 0.3f, 0.3f));
-            var ortb = okBtn.GetComponent<RectTransform>();
-            ortb.anchorMin = new Vector2(0.5f, 0);
-            ortb.anchorMax = new Vector2(0.5f, 0);
-            ortb.pivot = new Vector2(0.5f, 0.5f);
-            ortb.sizeDelta = new Vector2(100, 32);
-            ortb.anchoredPosition = new Vector2(0, 20);
-            var otmp = okBtn.GetComponentInChildren<TextMeshProUGUI>();
-            if (otmp != null) otmp.text = "取消";
-            var obtn = okBtn.GetComponent<Button>();
-            obtn.onClick.AddListener(() => Destroy(overlay));
-        }
+        btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Destroy(overlay); });
     }
 
     GameObject CreateButtonObj(GameObject parent, string name, Color bgColor)
@@ -705,7 +705,7 @@ public class UIDungeonMapController : MonoBehaviour
         UIFonts.Apply(tmp);
 
         var btn = go.AddComponent<Button>();
-        btn.onClick.AddListener(onClick);
+        btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); onClick(); });
         return go;
     }
 

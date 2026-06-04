@@ -161,6 +161,8 @@ public class TurnManager : MonoBehaviour
 
         if (!isPlayerTurn)
         {
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(AudioKeys.SFX_UI_HOVER);
             StartCoroutine(EnemyTurn());
         }
     }

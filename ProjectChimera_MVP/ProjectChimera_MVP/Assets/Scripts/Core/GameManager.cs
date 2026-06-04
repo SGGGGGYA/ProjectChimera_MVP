@@ -167,6 +167,13 @@ public class GameManager : MonoBehaviour
             dcg.AddComponent<UIDebugConsole>();
         }
 
+        if (FindObjectOfType<UICampController>() == null)
+        {
+            var cpGO = new GameObject("UICampController");
+            DontDestroyOnLoad(cpGO);
+            cpGO.AddComponent<UICampController>();
+        }
+
         if (dungeonSession.isInDungeon)
         {
             var ctrl = FindObjectOfType<UIDungeonMapController>();
@@ -557,6 +564,7 @@ public class GameManager : MonoBehaviour
     {
         enemyTemplates.Clear();
 
+        // ===== 普通战斗 (1-3星) =====
         enemyTemplates[0] = new List<UnitBattleData>
         {
             MakeGoblinWarrior(0), MakeGoblinWarrior(1),
@@ -577,6 +585,44 @@ public class GameManager : MonoBehaviour
             MakeGoblinWarrior(0), MakeGoblinWarrior(1),
             MakeGoblinWarrior(2), MakeGoblinShaman(3)
         };
+        // 前锋 + 萨满 + 双弓手
+        enemyTemplates[4] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeGoblinShaman(1),
+            MakeGoblinArcher(2), MakeGoblinArcher(3)
+        };
+        // 双战士 + 狼 + 萨满
+        enemyTemplates[5] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+            MakeWolf(2), MakeGoblinShaman(3)
+        };
+        // 三弓手 + 萨满 (玻璃大炮)
+        enemyTemplates[6] = new List<UnitBattleData>
+        {
+            MakeGoblinArcher(0), MakeGoblinArcher(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        // 双狼 + 双战士 (纯近战)
+        enemyTemplates[7] = new List<UnitBattleData>
+        {
+            MakeWolf(0), MakeWolf(1),
+            MakeGoblinWarrior(2), MakeGoblinWarrior(3)
+        };
+        // 三战士 + 弓手
+        enemyTemplates[8] = new List<UnitBattleData>
+        {
+            MakeGoblinWarrior(0), MakeGoblinWarrior(1),
+            MakeGoblinWarrior(2), MakeGoblinArcher(3)
+        };
+        // 狼 + 弓手 + 萨满 + 弓手
+        enemyTemplates[9] = new List<UnitBattleData>
+        {
+            MakeWolf(0), MakeGoblinArcher(1),
+            MakeGoblinShaman(2), MakeGoblinArcher(3)
+        };
+
+        // ===== 精英战斗 (3-4星) =====
         enemyTemplates[10] = new List<UnitBattleData>
         {
             MakeEliteGoblinWarrior(0), MakeGoblinWarrior(1),
@@ -587,10 +633,42 @@ public class GameManager : MonoBehaviour
             MakeWolf(0), MakeEliteWolf(1),
             MakeGoblinArcher(2), MakeGoblinShaman(3)
         };
+        // 双精英战士 + 弓手 + 萨满
+        enemyTemplates[12] = new List<UnitBattleData>
+        {
+            MakeEliteGoblinWarrior(0), MakeEliteGoblinWarrior(1),
+            MakeGoblinArcher(2), MakeGoblinShaman(3)
+        };
+        // 精英狼 + 精英战士 + 双弓手
+        enemyTemplates[13] = new List<UnitBattleData>
+        {
+            MakeEliteWolf(0), MakeEliteGoblinWarrior(1),
+            MakeGoblinArcher(2), MakeGoblinArcher(3)
+        };
+        // 双精英狼 + 萨满 + 弓手
+        enemyTemplates[14] = new List<UnitBattleData>
+        {
+            MakeEliteWolf(0), MakeEliteWolf(1),
+            MakeGoblinShaman(2), MakeGoblinArcher(3)
+        };
+        // 精英战士 + 精英狼 + 精英战士 + 萨满 (全精英)
+        enemyTemplates[15] = new List<UnitBattleData>
+        {
+            MakeEliteGoblinWarrior(0), MakeEliteWolf(1),
+            MakeEliteGoblinWarrior(2), MakeGoblinShaman(3)
+        };
+
+        // ===== Boss战 (5星) =====
         enemyTemplates[100] = new List<UnitBattleData>
         {
             MakeBossWarrior(0), MakeBossWarrior(1),
             MakeBossShaman(2), MakeBossArcher(3)
+        };
+        // Boss 变体: 督军 + 大萨满 + 双精锐弓手
+        enemyTemplates[101] = new List<UnitBattleData>
+        {
+            MakeBossWarrior(0), MakeBossShaman(1),
+            MakeBossArcher(2), MakeBossArcher(3)
         };
     }
 
@@ -600,7 +678,8 @@ public class GameManager : MonoBehaviour
         VIT = 2, STR = 10, DEF = 4, AGI = 4, INT = 1,
         weaponAttack = 3, level = 2,
         equippedWeapon = MakeTestWeapon("rusty_sword", "锈剑", StatType.STR, 1),
-        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1),
+        quirks = new List<Quirk> { new Quirk { id = "nuoRuo", localizedName = "懦弱", isPositive = false, triggerType = QuirkTriggerType.BattleStart, procChance = 1f } }
     };
     UnitBattleData MakeGoblinArcher(int rank) => new UnitBattleData
     {
@@ -608,7 +687,8 @@ public class GameManager : MonoBehaviour
         VIT = 1, STR = 7, DEF = 2, AGI = 9, INT = 2,
         weaponAttack = 2, level = 2,
         equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 1),
-        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1),
+        quirks = new List<Quirk> { new Quirk { id = "cuiRuo", localizedName = "脆弱", isPositive = false, triggerType = QuirkTriggerType.TurnStart, procChance = 1f } }
     };
     UnitBattleData MakeGoblinShaman(int rank) => new UnitBattleData
     {
@@ -616,7 +696,8 @@ public class GameManager : MonoBehaviour
         VIT = 2, STR = 4, DEF = 2, AGI = 3, INT = 8,
         weaponAttack = 0, level = 2,
         equippedWeapon = MakeTestWeapon("spirit_staff", "法杖", StatType.INT, 3),
-        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1)
+        equippedArmor = MakeTestArmor("cloth_armor", "布甲", 1),
+        quirks = new List<Quirk> { new Quirk { id = "buXiangYuGan", localizedName = "不祥预感", isPositive = false, triggerType = QuirkTriggerType.TurnStart, procChance = 1f } }
     };
     UnitBattleData MakeWolf(int rank) => new UnitBattleData
     {
@@ -624,47 +705,73 @@ public class GameManager : MonoBehaviour
         VIT = 4, STR = 9, DEF = 3, AGI = 12, INT = 1,
         weaponAttack = 2, level = 2,
         equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 2),
-        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 2)
+        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 2),
+        quirks = new List<Quirk> { new Quirk { id = "shiXue", localizedName = "嗜血", isPositive = true, triggerType = QuirkTriggerType.TurnStart, procChance = 1f } }
     };
     UnitBattleData MakeEliteGoblinWarrior(int rank) => new UnitBattleData
     {
-        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        unitName = "哥布林精英战士", isPlayer = false, rank = rank,
         VIT = 5, STR = 13, DEF = 6, AGI = 5, INT = 2,
         weaponAttack = 5, level = 4,
         equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
-        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
+        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2),
+        quirks = new List<Quirk>
+        {
+            new Quirk { id = "nuoRuo", localizedName = "懦弱", isPositive = false, triggerType = QuirkTriggerType.BattleStart, procChance = 1f },
+            new Quirk { id = "yiShang", localizedName = "易伤", isPositive = false, triggerType = QuirkTriggerType.OnTakeDamage, procChance = 1f }
+        }
     };
     UnitBattleData MakeEliteWolf(int rank) => new UnitBattleData
     {
-        unitName = "野狼", isPlayer = false, rank = rank,
+        unitName = "精英野狼", isPlayer = false, rank = rank,
         VIT = 7, STR = 12, DEF = 5, AGI = 14, INT = 1,
         weaponAttack = 4, level = 4,
         equippedWeapon = MakeTestWeapon("sharp_claws", "利爪", StatType.STR, 3),
-        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 3)
+        equippedArmor = MakeTestArmor("thick_hide", "厚皮", 3),
+        quirks = new List<Quirk>
+        {
+            new Quirk { id = "shiXue", localizedName = "嗜血", isPositive = true, triggerType = QuirkTriggerType.TurnStart, procChance = 1f },
+            new Quirk { id = "zhanYiAngYang", localizedName = "战役昂扬", isPositive = true, triggerType = QuirkTriggerType.BattleStart, procChance = 1f }
+        }
     };
     UnitBattleData MakeBossWarrior(int rank) => new UnitBattleData
     {
-        unitName = "哥布林战士", isPlayer = false, rank = rank,
+        unitName = "哥布林督军", isPlayer = false, rank = rank,
         VIT = 10, STR = 16, DEF = 8, AGI = 6, INT = 3,
         weaponAttack = 8, level = 6,
         equippedWeapon = MakeTestWeapon("great_axe", "巨斧", StatType.STR, 5),
-        equippedArmor = MakeTestArmor("plate_armor", "铠甲", 4)
+        equippedArmor = MakeTestArmor("plate_armor", "铠甲", 4),
+        quirks = new List<Quirk>
+        {
+            new Quirk { id = "tieBi", localizedName = "铁臂", isPositive = true, triggerType = QuirkTriggerType.BattleStart, procChance = 1f },
+            new Quirk { id = "zhanYiAngYang", localizedName = "战役昂扬", isPositive = true, triggerType = QuirkTriggerType.BattleStart, procChance = 1f }
+        }
     };
     UnitBattleData MakeBossShaman(int rank) => new UnitBattleData
     {
-        unitName = "哥布林萨满", isPlayer = false, rank = rank,
+        unitName = "哥布林大萨满", isPlayer = false, rank = rank,
         VIT = 6, STR = 6, DEF = 4, AGI = 5, INT = 12,
         weaponAttack = 2, level = 6,
         equippedWeapon = MakeTestWeapon("arcane_staff", "奥术法杖", StatType.INT, 6),
-        equippedArmor = MakeTestArmor("robe", "法袍", 3)
+        equippedArmor = MakeTestArmor("robe", "法袍", 3),
+        quirks = new List<Quirk>
+        {
+            new Quirk { id = "buXiangYuGan", localizedName = "不祥预感", isPositive = false, triggerType = QuirkTriggerType.TurnStart, procChance = 1f },
+            new Quirk { id = "yiShang", localizedName = "易伤", isPositive = false, triggerType = QuirkTriggerType.OnTakeDamage, procChance = 1f }
+        }
     };
     UnitBattleData MakeBossArcher(int rank) => new UnitBattleData
     {
-        unitName = "哥布林弓手", isPlayer = false, rank = rank,
+        unitName = "哥布林精锐弓手", isPlayer = false, rank = rank,
         VIT = 4, STR = 10, DEF = 4, AGI = 12, INT = 3,
         weaponAttack = 5, level = 6,
         equippedWeapon = MakeTestWeapon("long_bow", "长弓", StatType.AGI, 4),
-        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 3)
+        equippedArmor = MakeTestArmor("leather_armor", "皮甲", 3),
+        quirks = new List<Quirk>
+        {
+            new Quirk { id = "cuiRuo", localizedName = "脆弱", isPositive = false, triggerType = QuirkTriggerType.TurnStart, procChance = 1f },
+            new Quirk { id = "lengJing", localizedName = "冷静", isPositive = true, triggerType = QuirkTriggerType.TurnStart, procChance = 1f }
+        }
     };
 
     Weapon MakeTestWeapon(string id, string name, StatType stat, int amount) => new Weapon
@@ -689,6 +796,11 @@ public class GameManager : MonoBehaviour
                 weaponAttack = 5, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("iron_sword", "铁剑", StatType.STR, 3),
                 equippedArmor = MakeTestArmor("plate_armor", "铠甲", 3),
+                quirks = new List<Quirk>
+                {
+                    new Quirk { id = "tieBi", localizedName = "铁臂", isPositive = true, triggerType = QuirkTriggerType.BattleStart, procChance = 1f },
+                    new Quirk { id = "wanQiang", localizedName = "顽强", isPositive = true, triggerType = QuirkTriggerType.OnDeathsDoor, procChance = 1f }
+                }
             },
             new UnitBattleData
             {
@@ -696,7 +808,13 @@ public class GameManager : MonoBehaviour
                 VIT = 10, STR = 12, DEF = 4, AGI = 4, INT = 2,
                 weaponAttack = 6, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("great_axe", "巨斧", StatType.STR, 5),
-                equippedArmor = MakeTestArmor("hide_armor", "硬皮甲", 2)
+                equippedArmor = MakeTestArmor("hide_armor", "硬皮甲", 2),
+                quirks = new List<Quirk>
+                {
+                    new Quirk { id = "zhanYiAngYang", localizedName = "战役昂扬", isPositive = true, triggerType = QuirkTriggerType.BattleStart, procChance = 1f },
+                    new Quirk { id = "shiXue", localizedName = "嗜血", isPositive = true, triggerType = QuirkTriggerType.TurnStart, procChance = 1f },
+                    new Quirk { id = "ziNue", localizedName = "自虐", isPositive = false, triggerType = QuirkTriggerType.TurnStart, procChance = 1f }
+                }
             },
             new UnitBattleData
             {
@@ -704,7 +822,11 @@ public class GameManager : MonoBehaviour
                 VIT = 5, STR = 6, DEF = 4, AGI = 10, INT = 4,
                 weaponAttack = 3, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("short_bow", "短弓", StatType.AGI, 2),
-                equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2)
+                equippedArmor = MakeTestArmor("leather_armor", "皮甲", 2),
+                quirks = new List<Quirk>
+                {
+                    new Quirk { id = "lengJing", localizedName = "冷静", isPositive = true, triggerType = QuirkTriggerType.TurnStart, procChance = 1f }
+                }
             },
             new UnitBattleData
             {
@@ -712,7 +834,11 @@ public class GameManager : MonoBehaviour
                 VIT = 4, STR = 3, DEF = 3, AGI = 7, INT = 12,
                 weaponAttack = 2, level = 3, isPlayer = true,
                 equippedWeapon = MakeTestWeapon("arcane_staff", "奥术法杖", StatType.INT, 4),
-                equippedArmor = MakeTestArmor("robe", "法袍", 1)
+                equippedArmor = MakeTestArmor("robe", "法袍", 1),
+                quirks = new List<Quirk>
+                {
+                    new Quirk { id = "wanQiang", localizedName = "顽强", isPositive = true, triggerType = QuirkTriggerType.OnDeathsDoor, procChance = 1f }
+                }
             }
         };
 
@@ -734,7 +860,7 @@ public class GameManager : MonoBehaviour
     public void StartBattle()
     {
         Log.Info("[GameManager] StartBattle() 被调用");
-        int template = Random.Range(0, 2);
+        int template = Random.Range(0, 10);
         enemyTeamData = CreateEnemyTeamFromTemplate(template);
         foreach (var u in enemyTeamData)
         {

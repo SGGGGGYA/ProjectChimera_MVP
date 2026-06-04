@@ -128,7 +128,7 @@ public class UIFormationController : MonoBehaviour
         slotGrid = gridObj.transform;
 
         btnClose = MakeButton(root, "CloseBtn", "关闭", new Color(0.3f, 0.3f, 0.3f));
-        btnClose.onClick.AddListener(Close);
+        btnClose.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Close(); });
 
         panel.SetActive(false);
     }
@@ -165,10 +165,12 @@ public class UIFormationController : MonoBehaviour
         selectedIndex = -1;
         Refresh();
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
         selectedIndex = -1;
     }
@@ -244,7 +246,7 @@ public class UIFormationController : MonoBehaviour
         colors.highlightedColor = new Color(0.35f, 0.5f, 0.35f);
         btn.colors = colors;
         int idx = index;
-        btn.onClick.AddListener(() => OnSlotClick(idx));
+        btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnSlotClick(idx); });
 
         return go;
     }

@@ -162,8 +162,8 @@ public class UIShopController : MonoBehaviour
         goldRt.anchorMin = new Vector2(0.5f, 0);
         goldRt.anchorMax = new Vector2(1, 0);
 
-        btnBuy.onClick.AddListener(OnBuyClick);
-        btnSell.onClick.AddListener(OnSellClick);
+        btnBuy.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnBuyClick(); });
+        btnSell.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnSellClick(); });
 
         panel.SetActive(false);
         detailPanel.SetActive(false);
@@ -223,10 +223,12 @@ public class UIShopController : MonoBehaviour
         if (panel == null) EnsurePanel();
         Refresh();
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
         if (detailPanel != null) detailPanel.SetActive(false);
     }
@@ -279,7 +281,7 @@ public class UIShopController : MonoBehaviour
         var colors = btn.colors;
         colors.highlightedColor = new Color(0.3f, 0.3f, 0.4f);
         btn.colors = colors;
-        btn.onClick.AddListener(() => ShowDetail(def));
+        btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); ShowDetail(def); });
 
         go.transform.SetParent(itemList, false);
     }

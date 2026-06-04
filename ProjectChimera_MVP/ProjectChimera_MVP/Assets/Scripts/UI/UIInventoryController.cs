@@ -168,10 +168,10 @@ public class UIInventoryController : MonoBehaviour
         csLayout.spacing = new Vector2(8, 8);
         charButtonGrid = csGrid.transform;
 
-        btnClose.onClick.AddListener(Close);
-        btnEquip.onClick.AddListener(OnEquipClick);
-        btnUnequip.onClick.AddListener(OnUnequipClick);
-        btnUse.onClick.AddListener(OnUseClick);
+        btnClose.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Close(); });
+        btnEquip.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnEquipClick(); });
+        btnUnequip.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnUnequipClick(); });
+        btnUse.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); OnUseClick(); });
 
         panel.SetActive(false);
         detailPanel.SetActive(false);
@@ -232,10 +232,12 @@ public class UIInventoryController : MonoBehaviour
         if (panel == null) EnsurePanel();
         Refresh();
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
         detailPanel?.SetActive(false);
         charSelector?.SetActive(false);

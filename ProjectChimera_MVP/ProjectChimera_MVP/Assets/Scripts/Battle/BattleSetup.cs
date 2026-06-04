@@ -160,27 +160,19 @@ public class BattleSetup : MonoBehaviour
 
     static List<UnitBattleData> GetFullEnemyTeam()
     {
-        int template = Random.Range(0, 3);
+        int template = Random.Range(0, 10);
         switch (template)
         {
-            case 0: // 哥布林战队(满编)
-                return new List<UnitBattleData>
-                {
-                    MakeGoblinWarrior(0), MakeGoblinWarrior(1),
-                    MakeGoblinArcher(2),  MakeGoblinShaman(3)
-                };
-            case 1: // 哥布林+萨满
-                return new List<UnitBattleData>
-                {
-                    MakeGoblinWarrior(0), MakeGoblinWarrior(1),
-                    MakeGoblinArcher(2),  MakeGoblinShaman(3)
-                };
-            default: // 狼群
-                return new List<UnitBattleData>
-                {
-                    MakeWolf(0), MakeWolf(1),
-                    MakeWolf(2), MakeWolf(3)
-                };
+            case 0: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinWarrior(1), MakeGoblinArcher(2), MakeGoblinArcher(3) };
+            case 1: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeWolf(1), MakeGoblinArcher(2), MakeGoblinShaman(3) };
+            case 2: return new List<UnitBattleData> { MakeWolf(0), MakeWolf(1), MakeGoblinArcher(2), MakeGoblinShaman(3) };
+            case 3: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinWarrior(1), MakeGoblinWarrior(2), MakeGoblinShaman(3) };
+            case 4: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinShaman(1), MakeGoblinArcher(2), MakeGoblinArcher(3) };
+            case 5: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinWarrior(1), MakeWolf(2), MakeGoblinShaman(3) };
+            case 6: return new List<UnitBattleData> { MakeGoblinArcher(0), MakeGoblinArcher(1), MakeGoblinArcher(2), MakeGoblinShaman(3) };
+            case 7: return new List<UnitBattleData> { MakeWolf(0), MakeWolf(1), MakeGoblinWarrior(2), MakeGoblinWarrior(3) };
+            case 8: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinWarrior(1), MakeGoblinWarrior(2), MakeGoblinArcher(3) };
+            default: return new List<UnitBattleData> { MakeWolf(0), MakeGoblinArcher(1), MakeGoblinShaman(2), MakeGoblinArcher(3) };
         }
     }
 

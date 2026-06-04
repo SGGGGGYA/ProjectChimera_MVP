@@ -187,7 +187,7 @@ public class UIPauseMenu : MonoBehaviour
         UIFonts.Apply(tmp);
 
         var btn = go.AddComponent<Button>();
-        btn.onClick.AddListener(onClick);
+        btn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); onClick(); });
     }
 
     TextMeshProUGUI MakeLabel(GameObject parent, string name, Vector2 pos, string text, int fontSize, Color color)
@@ -305,10 +305,12 @@ public class UIPauseMenu : MonoBehaviour
         if (settingsPanel != null) settingsPanel.SetActive(false);
         if (fullScreenBlocker != null) fullScreenBlocker.SetActive(true);
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
         if (fullScreenBlocker != null) fullScreenBlocker.SetActive(false);

@@ -21,7 +21,7 @@ public static class DungeonGenerator
         int row0Start = 0;
         for (int c = 0; c < cols0; c++)
         {
-            nodes.Add(new DungeonNode { x = c, y = 0, type = DungeonNodeType.Battle, visited = false, enemyTemplateId = RangedInt(rng, 0, 3) });
+            nodes.Add(new DungeonNode { x = c, y = 0, type = DungeonNodeType.Battle, visited = false, enemyTemplateId = RangedInt(rng, 0, 9) });
         }
 
         int row1Start = nodes.Count;
@@ -31,8 +31,8 @@ public static class DungeonGenerator
             DungeonNodeType type;
             int templateId = -1;
             if (roll < 0.35f) { type = DungeonNodeType.Rest; }
-            else if (roll < 0.55f) { type = DungeonNodeType.Elite; templateId = 10 + RangedInt(rng, 0, 1); }
-            else if (roll < 0.80f) { type = DungeonNodeType.Battle; templateId = RangedInt(rng, 0, 3); }
+            else if (roll < 0.55f) { type = DungeonNodeType.Elite; templateId = 10 + RangedInt(rng, 0, 5); }
+            else if (roll < 0.80f) { type = DungeonNodeType.Battle; templateId = RangedInt(rng, 0, 9); }
             else { type = DungeonNodeType.Treasure; }
             nodes.Add(new DungeonNode { x = c, y = 1, type = type, visited = false, enemyTemplateId = templateId });
         }
@@ -46,13 +46,13 @@ public static class DungeonGenerator
             if (c == bossCol)
             {
                 type = DungeonNodeType.Boss;
-                templateId = 100;
+                templateId = 100 + rng.Next(0, 2);
             }
             else
             {
                 float roll = (float)rng.NextDouble();
-                if (roll < 0.4f) { type = DungeonNodeType.Battle; templateId = RangedInt(rng, 0, 3); }
-                else if (roll < 0.7f) { type = DungeonNodeType.Elite; templateId = 10 + RangedInt(rng, 0, 1); }
+                if (roll < 0.4f) { type = DungeonNodeType.Battle; templateId = RangedInt(rng, 0, 9); }
+                else if (roll < 0.7f) { type = DungeonNodeType.Elite; templateId = 10 + RangedInt(rng, 0, 5); }
                 else { type = DungeonNodeType.Treasure; templateId = -1; }
             }
             nodes.Add(new DungeonNode { x = c, y = 2, type = type, visited = false, enemyTemplateId = templateId });

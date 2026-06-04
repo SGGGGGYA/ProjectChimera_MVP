@@ -108,7 +108,7 @@ public class UIRecruitController : MonoBehaviour
         clRt.offsetMin = Vector2.zero; clRt.offsetMax = Vector2.zero;
         UIFonts.CreateLabel(cLbl, "Label", "关闭", 14, Color.white);
         var cBtn = closeBtn.AddComponent<Button>();
-        cBtn.onClick.AddListener(Close);
+        cBtn.onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); Close(); });
 
         panel.SetActive(false);
     }
@@ -197,14 +197,14 @@ public class UIRecruitController : MonoBehaviour
                 bImg.color = new Color(0.4f, 0.3f, 0.2f);
                 blTmp.text = "替换";
                 blTmp.color = Color.white;
-                btnGo.AddComponent<Button>().onClick.AddListener(() => RecruitReplace(def));
+                btnGo.AddComponent<Button>().onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); RecruitReplace(def); });
             }
             else
             {
                 bImg.color = new Color(0.3f, 0.5f, 0.3f);
                 blTmp.text = "招募";
                 blTmp.color = Color.white;
-                btnGo.AddComponent<Button>().onClick.AddListener(() => RecruitNew(def));
+                btnGo.AddComponent<Button>().onClick.AddListener(() => { AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLICK); RecruitNew(def); });
             }
 
             go.transform.SetParent(slotGrid, false);
@@ -260,10 +260,12 @@ public class UIRecruitController : MonoBehaviour
         if (panel == null) EnsurePanel();
         Refresh();
         panel.SetActive(true);
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
         if (panel != null) panel.SetActive(false);
     }
 }

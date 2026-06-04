@@ -1005,6 +1005,7 @@ public class BattleManager : MonoBehaviour
         if (target.currentHP <= 0)
         {
             BattleLog.Add($"{target.unitName} 被击败！");
+            AudioManager.Instance?.PlaySFX(AudioKeys.SFX_DEFEAT);
             // 触发 OnKill 特质
             QuirkTriggerSystem.CheckTriggers(attacker, QuirkTriggerType.OnKill);
 
