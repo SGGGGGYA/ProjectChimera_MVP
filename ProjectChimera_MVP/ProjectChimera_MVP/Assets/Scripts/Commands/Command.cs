@@ -58,10 +58,11 @@ public class DealDamageCommand : Command
                 {
                     ctx.battleManager.SpawnDamagePopup(enemy.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
                     BattleLog.Add($"{ctx.attacker.unitName} 攻击 {enemy.unitName} —— <color=#aaaaaa>未命中！</color>");
+                    StressManager.AddStress(ctx.attacker, 2, StressTag.Combat);
                     continue;
                 }
                 bool crit = CombatSystem.IsCrit(ctx.attacker, enemy);
-                int dmg = CombatSystem.CalculateDamage(ctx.attacker, enemy, BuildSkillData());
+                int dmg = CombatSystem.CalculateDamage(ctx.attacker, enemy, BuildSkillData(), crit);
                 if (crit)
                 {
                     dmg = Mathf.RoundToInt(dmg * 1.5f);
@@ -82,12 +83,13 @@ public class DealDamageCommand : Command
             {
                 ctx.battleManager.SpawnDamagePopup(ctx.selectedTarget.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
                 BattleLog.Add($"{ctx.attacker.unitName} 攻击 {ctx.selectedTarget.unitName} —— <color=#aaaaaa>未命中！</color>");
+                StressManager.AddStress(ctx.attacker, 2, StressTag.Combat);
                 result.skipRemainingCommands = true;
                 return result;
             }
 
             bool isCrit = CombatSystem.IsCrit(ctx.attacker, ctx.selectedTarget);
-            int dmg = CombatSystem.CalculateDamage(ctx.attacker, ctx.selectedTarget, BuildSkillData());
+            int dmg = CombatSystem.CalculateDamage(ctx.attacker, ctx.selectedTarget, BuildSkillData(), isCrit);
             if (isCrit)
             {
                 dmg = Mathf.RoundToInt(dmg * 1.5f);

@@ -867,13 +867,14 @@ public class BattleManager : MonoBehaviour
             SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_MISS);
+            StressManager.AddStress(attacker, 2, StressTag.Combat);
             if (!battleOver)
                 EndPlayerTurn();
             return;
         }
 
         bool isCrit = CombatSystem.IsCrit(attacker, target);
-        int damage = CombatSystem.CalculateDamage(attacker, target, new SkillData { baseDamage = 0, strScaling = 0, agiScaling = 0 });
+        int damage = CombatSystem.CalculateDamage(attacker, target, new SkillData { baseDamage = 0, strScaling = 0, agiScaling = 0 }, isCrit);
         if (isCrit)
         {
             damage = Mathf.RoundToInt(damage * 1.5f);
