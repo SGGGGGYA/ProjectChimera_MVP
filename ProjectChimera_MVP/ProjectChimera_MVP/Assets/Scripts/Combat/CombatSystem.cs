@@ -35,7 +35,9 @@ public static class CombatSystem
 
         raw *= Random.Range(0.85f, 1.15f);
 
-        float defReduction = target.DEF_Effective * 0.5f;
+        // 防御效率 = 1 / (1 + DEF * 0.02)，DEF 越高每点收益越低（设计文档 2.2 节）
+        float def = target.DEF_Effective;
+        float defReduction = def / (1f + def * 0.02f);
         if (isCrit)
             defReduction *= (1f - CRIT_DEF_IGNORE);
         raw -= defReduction;

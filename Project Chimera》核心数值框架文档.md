@@ -4,28 +4,60 @@
 
 # 《Project Chimera》核心数值框架文档
 
-**文档版本**：V2.0（添加代码勘误表）  
-**关联文档**：游戏设计技术规格书 V2.0  
-**创建日期**：2026-05-05  
-**最后更新**：2026-05-26  
+**文档版本**：V3.0（勘误表重写）
+**关联文档**：游戏设计技术规格书 V2.0
+**创建日期**：2026-05-05
+**最后更新**：2026-06-09
 **负责模块**：数值策划
 
-> ⚠️ **代码实现勘误表（2026-05-26）**：本文档是设计层面的数值框架，实际代码实现与本文档存在多处不一致。以下列出所有差异：
+> ⚠️ **勘误表更新说明（V3.0 / 2026-06-09）**：本版本对 V2.0 勘误表进行系统性刷新，处理以下四类问题：
+> 1. **修复** —— 代码已对齐设计但勘误表漏标：#1 防御公式、#3 命中溢出转暴击、#5 暴击效果、#12 未命中惩罚（V3.0 写入时发现三处调用点已实现）
+> 2. **勘误** —— 勘误表本身的数值与代码不一致：#2 命中系数（原写 1%/点 → 实测 0.3%/点）、#4 暴击系数（原写 1%/点 → 实测 0.5%/点）
+> 3. **登记主动平衡调整** —— #2 #4 系数整体下调系开发期主动决策（非缺陷），本次正式登记入档
+> 4. **遗留项** —— 仍未实现的功能（#6~#10）继续追踪
+>
+> 以下勘误表反映的是**代码与设计的当前真实差距**。
 
-| 项目 | 文档公式 | 代码实现 (`CombatSystem.cs` 等) | 差异说明 |
-|:---|:---|:---|:---:|
-| **伤害公式防御减免** | `防御效率 = 1 / (1 + DEF * 0.02)` 除法衰减 | `target.DEF_Effective * 0.5` 线性减免 | 文档用除法衰减，代码用线性50% |
-| **命中公式** | `命中率 = 90% + (ACC - DOD) * 0.5%` | `Mathf.Clamp(0.90f + (ACC - DOD) * 0.01f, 0.05f, 0.98f)` | 文档用 0.5%/点，代码用 1%/点；上限代码为 98% 非 95% |
-| **命中溢出转暴击** | 溢出命中率按 30% 转为暴击率 | 代码**未实现**此机制 | 缺失功能，CRT 独立计算 |
-| **暴击判定** | 基础 5% + 溢出转化 + 装备加成 | `Mathf.Clamp(0.05f + CRT * 0.01f, 0.01f, 0.50f)` | 代码仅用 CRT 属性，无溢出转化 |
-| **暴击效果** | 无视 50% DEF + 攻击方 -5 压力 | 代码仅 1.5x 伤害倍率，无 DEF 无视 | 暴击减压未实现 |
-| **经验曲线** | `100 * 等级^1.8` (指数增长) | `100 * 2^(等级-1)`，上限 5 级 | 曲线形状不同，等级上限也不同 |
-| **属性成长** | 每级 3 点可分配属性点 | 代码**自动分配**属性，无加点系统 | 设计意图 vs 实现方式差异 |
-| **命名时刻** | 全属性 +10%，专属技能槽，压力上限 +20，命名怪癖 | 代码**未实现**命名系统 | 命名系统完全缺失 |
-| **等级上限** | 冒险者 10 级 / 领袖 15 级 | 代码上限为 **5 级** (ExpCurve 限制) | MVP 阶段自动缩减 |
-| **随机浮动** | 0.9~1.1 均匀随机 | `±15%` 在 `CalculateDamage` 内部 | 10%→15% 差异 |
-| **压力抗性** | 0%~60% 有效范围，上限 90% | `stressResist` 已定义，用于 `AddStress()` | 基本实现，但未做衰减曲线 |
-| **未命中惩罚** | 攻击方压力 +2 | 代码**未实现** | 缺失功能 |
+## 代码实现勘误表（V3.0 / 2026-06-09）
+
+> 状态图例：✅ 已修复 / 🔧 主动平衡调整 / ❌ 仍未实现 / ⚠️ 设计待跟进
+
+| # | 项目 | 文档公式 | 代码实现 | 状态 | 差异说明 |
+|:--:|:---|:---|:---|:---:|:---|
+| 1 | 伤害公式防御减免 | `DEF / (1 + DEF * 0.02)` 除法衰减 | `def / (1f + def * 0.02f)` ([CombatSystem.cs:38-43](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L38-L43)) | ✅ 已修复 | 2026-06-09 同步设计意图，替换原线性 50%；CombatDamageTests.Test3 预期区间 [4,6]→[7,10] |
+| 2 | 命中公式 | `0.5%/点`，上限 95% | `HIT_ACC_SCALE = 0.003f`（**0.3%/点**），范围 0.10~0.95 | 🔧 主动调整 | 系数从文档 0.5% 下调至 0.3%，**整体压低战斗节奏**。如需恢复原设计需全局调整装备/怪癖数值 |
+| 3 | 命中溢出转暴击 | 溢出命中率按 30% 转化 | `CRIT_OVERFLOW_RATE = 0.30f` ([CombatSystem.cs:13, 25-26](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L13-L26)) | ✅ 已实现 | V2.0 勘误表漏标，实际代码已实现 |
+| 4 | 暴击判定 | 基础 5% + 溢出转化 + 装备 | `BASE_CRIT = 0.03f`（3%），`CRT_CRIT_SCALE = 0.005f`（**0.5%/点**），上限 70% | 🔧 主动调整 | 基础值 5%→3%、CRT 系数 1%/点→0.5%/点，与 #2 同步下调；溢出转化 30% 已实现 |
+| 5 | 暴击效果 | 无视 50% DEF + 攻击方 -5 压力 | 1.5× 倍率 + `CRIT_DEF_IGNORE=0.5f` ([CombatSystem.cs:14, 41-42](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L14-L41)) + `onCriticalDeal = -5` ([StressConfig.cs:15](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressConfig.cs#L15)) | ✅ 已实现 | V2.0 勘误表漏标，实际代码已实现 DEF 无视与暴击减压 |
+| 6 | 经验曲线 | `100 * 等级^1.8`（指数增长） | `100 * 2^(L-1)`，上限 5 级 ([UnitData.cs:665-670](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L665-L670)) | ❌ 未实现 | 曲线形状不同，等级上限也不同。设计 10/15 级 vs 代码 5 级 |
+| 7 | 属性成长 | 每级 3 点可分配属性点 | 代码**自动分配**主属性 ([UnitData.cs:683-691](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L683-L691)) | ❌ 未实现 | MVP 阶段简化，未引入加点系统 |
+| 8 | 命名时刻 | 全属性 +10%、专属技能槽、压力上限 +20、命名怪癖 | 代码**未实现**命名系统 | ❌ 未实现 | 命名系统完全缺失 |
+| 9 | 等级上限 | 冒险者 10 级 / 领袖 15 级 | 代码上限为 **5 级** | ⚠️ 设计待跟进 | MVP 阶段自动缩减。需在恢复加点系统时同步恢复等级上限 |
+| 10 | 随机浮动 | 0.9~1.1 均匀随机 | `Random.Range(0.85f, 1.15f)` ±15% ([CombatSystem.cs:36](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L36)) | ❌ 未实现 | 10%→15% 差异，整体伤害区间更宽 |
+| 11 | 压力抗性 | 0%~60% 有效范围，上限 90% | `baseResist=0`, `resistPerLevel=0.02`, `maxResist=0.9`, `resistDiminishThreshold=0.6` ([StressConfig.cs:18-21](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressConfig.cs#L18-L21)) + 衰减逻辑 ([StressManager.cs:18-25](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressManager.cs#L18-L25)) | ✅ 已实现 | 60% 后按 50% 折算继续生效，90% 封顶 |
+| 12 | 未命中惩罚 | 攻击方压力 +2 | 三处调用点：AoE 未命中 [Command.cs:61](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Commands/Command.cs#L61) / 单体未命中 [Command.cs:86](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Commands/Command.cs#L86) / 战斗管理器未命中 [BattleManager.cs:878](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/BattleManager.cs#L878) — 均 `StressManager.AddStress(attacker, 2, StressTag.Combat)` | ✅ 已实现 | V2.0 / V3.0 勘误表均漏标。**注意**：实现分散在三处调用点而非 IsHit() 内部，因此 EditMode 概率采样测试不受影响 |
+
+---
+
+## 主动平衡调整专项说明（#2 + #4）
+
+**背景**：2026-05 期间命中/暴击整体数值偏高（命中 ~90%、暴击频繁），导致战斗节奏过快、技能策略被"命中即可"碾压。
+
+**调整方案**（已落地为代码）：
+- 命中 ACC 系数：0.5%/点 → **0.3%/点**（-40%）
+- 暴击基础值：5% → **3%**（-40%）
+- 暴击 CRT 系数：1%/点 → **0.5%/点**（-50%）
+- 暴击上限：50% → **70%**（+40%，由溢出机制驱动）
+
+**取舍**：
+- ✅ 命中率/暴击率绝对值下降 → 慢节奏、提升策略深度
+- ✅ 暴击上限放宽 → 高 ACC 仍有收益路径（命中溢出转暴击）
+- ⚠️ 与设计文档原值偏离 → 装备/怪癖数值仍按原 0.5%/1% 设计 → 当前 ACC 收益"打折"
+
+**后续行动**：
+- 选项 A：保留当前系数，同步下调装备/怪癖的 ACC/CRT 加成（推荐：低成本）
+- 选项 B：恢复原 0.5%/1% 系数，战斗节奏需另寻平衡手段
+- 决策责任人：数值策划；决策时机：下次装备数值重审
 
 ---
 
