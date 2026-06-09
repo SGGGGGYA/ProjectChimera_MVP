@@ -1,0 +1,17 @@
+{
+    "name": "Spine.Examples",
+    "rootNamespace": "Spine.Examples",
+    "references": [
+        "spine-csharp",
+        "spine-unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
