@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using ProjectChimera.Core;
 
 public class BattleSetup : MonoBehaviour
 {
@@ -160,7 +161,7 @@ public class BattleSetup : MonoBehaviour
 
     static List<UnitBattleData> GetFullEnemyTeam()
     {
-        int template = Random.Range(0, 10);
+        int template = RandomProvider.Current.Range(0, 10);
         switch (template)
         {
             case 0: return new List<UnitBattleData> { MakeGoblinWarrior(0), MakeGoblinWarrior(1), MakeGoblinArcher(2), MakeGoblinArcher(3) };
@@ -265,6 +266,8 @@ public class BattleSetup : MonoBehaviour
         bm.enemyUnits = enemyUnits;
         Log.Info("[BattleSetup] BattleManager 编队设置完成");
 
+        EnemyAIEngine.InitializeThreats(bm);
+
         // 初始化回合制（如果场景没放 TurnManager，自动创建一个）
         TurnManager tm = FindObjectOfType<TurnManager>();
         if (tm == null)
@@ -273,6 +276,18 @@ public class BattleSetup : MonoBehaviour
             tm = tmGO.AddComponent<TurnManager>();
             Log.Info("[BattleSetup] 自动创建了 TurnManager");
         }
+
+        // 装配 BattleManager ↔ TurnManager 双向引用（替代 FindObjectOfType 和 Instance 单例调用）
+        //  - bm.TurnState = tm：让 BattleManager 通过 ITurnStateProvider 读回合状态
+        //  - tm.Context = bm：让 TurnManager 通过 IBattleContext 调 BattleManager UI/编队
+        //  - BattleContextProvider.Set(bm)：让挂在预制体上、无法被直接注入的组件
+        //    （如 UnitClickDetector）通过 Provider 拿到当前上下文
+        // 这一步打破了原 TurnManager ↔ BattleManager 循环依赖（双方都通过接口看对方）
+        bm.TurnState = tm;
+        tm.Context = bm;
+        ProjectChimera.Core.BattleContextProvider.Set(bm);
+        Log.Info("[BattleSetup] TurnManager ↔ BattleManager 双向引用已注入");
+
         tm.InitializeBattle(playerUnits, enemyUnits);
         Log.Info("[BattleSetup] TurnManager 初始化完成");
     }
@@ -429,11 +444,35 @@ public class BattleSetup : MonoBehaviour
         unit.equippedArmor = data.equippedArmor;
         unit.quirks = data.quirks ?? new List<Quirk>();
 
+        // 同步命名系统持久化字段：isNamed / stressCapBonus / exclusiveSkill
+        unit.isNamed = data.isNamed;
+        unit.stressCapBonus = data.stressCapBonus;
+        if (data.isNamed && !string.IsNullOrEmpty(data.exclusiveSkillId))
+        {
+            SkillData matched = unit.ApplyExclusiveSkillFromId(data.exclusiveSkillId);
+            if (matched != null)
+                Log.Info($"[命名] {data.unitName} 加载专属技能：{matched.skillName}");
+            else
+                Log.Warn($"[命名] {data.unitName} 找不到专属技能 '{data.exclusiveSkillId}'，将留空");
+        }
+
+        // 同步 V0.5 加点系统持久化字段：unassignedPoints
+        unit.unassignedPoints = data.unassignedPoints;
+
         // 初始化 AI 状态
         unit.skillCooldowns = new Dictionary<string, int>();
         EnemyAIEngine.Reset(unit);
 
         // UnitClickDetector 已在预制体上，无需 AddComponent
+
+        // 添加碰撞体用于点击检测
+        var col = go.GetComponent<BoxCollider2D>();
+        if (col == null)
+        {
+            col = go.AddComponent<BoxCollider2D>();
+            col.size = new Vector2(1.5f, 2f);
+            col.offset = new Vector2(0f, 0.3f);
+        }
 
         // ==================== 血条 + 压力条 + 状态图标 ====================
 

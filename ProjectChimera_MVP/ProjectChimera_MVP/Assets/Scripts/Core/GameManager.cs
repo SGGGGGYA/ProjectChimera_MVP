@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using ProjectChimera.Core;
 
 public enum GameState
 {
@@ -36,15 +37,47 @@ public class UnitBattleData
     public int currentHP;
     public int maxHp;
 
+    // ========== 命名系统（持久化字段） ==========
+
+    /// <summary>是否已命名（炮灰→英雄的质变节点）。</summary>
+    public bool isNamed;
+    /// <summary>命名后压力上限额外加值（命名时写为 20）。</summary>
+    public int stressCapBonus;
+    /// <summary>专属技能名（对应 classData.skillPool 中某项的 skillName）。空串=未选。</summary>
+    public string exclusiveSkillId;
+
+    // ========== V0.5 加点系统（持久化字段） ==========
+
+    /// <summary>未分配属性点（V0.5 引入：战斗升级时累加，英雄厅手动分配）</summary>
+    public int unassignedPoints;
+
+    /// <summary>
+    /// V0.5 加点入口（持久化层）：从 unassignedPoints 取出 1 点分配到指定主属性。
+    /// 持久化层数据源：UnitBattleData；下次 BattleSetup.CreateUnit 同步到 UnitData.primaryAttributes。
+    /// </summary>
+    /// <returns>是否成功分配</returns>
+    public bool AllocatePoint(StatType stat)
+    {
+        if (unassignedPoints <= 0) return false;
+        switch (stat)
+        {
+            case StatType.VIT: VIT++; break;
+            case StatType.STR: STR++; break;
+            case StatType.AGI: AGI++; break;
+            case StatType.INT: INT++; break;
+            default: return false;
+        }
+        unassignedPoints--;
+        BattleLog.Add($"[加点] {unitName} 分配 1 点 → {stat}（剩余 {unassignedPoints}）");
+        return true;
+    }
+
+    /// <summary>优先查 ClassDefinition.baseHp，否则返回 0（不再硬编码职业名）</summary>
     public int GetClassBaseHP()
     {
-        if (unitName.Contains("战士")) return 40;
-        if (unitName.Contains("狂战士")) return 50;
-        if (unitName.Contains("游侠")) return 30;
-        if (unitName.Contains("学者")) return 25;
-        if (unitName.Contains("哥布林")) return 40;
-        if (unitName.Contains("野狼") || unitName.Contains("狼")) return 40;
-        return 40;
+        var cd = GameManager.Instance != null ? GameManager.Instance.GetClassDefinition(unitName) : null;
+        if (cd != null) return cd.baseHp;
+        return 0;
     }
 
     public int ComputeMaxHP()
@@ -334,8 +367,8 @@ public class GameManager : MonoBehaviour
                 effectDuration = 3,
                 commands = new List<Command>
                 {
-                    new ModifyAttributeCommand { modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.STR, 5f, "狂暴之力") },
-                    new ModifyAttributeCommand { modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.DEF, -3f, "狂暴之力") },
+                    new ModifyAttributeCommand { duration = 3, modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.STR, 5f, "狂暴之力") },
+                    new ModifyAttributeCommand { duration = 3, modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.DEF, -3f, "狂暴之力") },
                     new ApplyStatusCommand { statusType = StatusType.Berserk, duration = 3 }
                 }
             },
@@ -387,7 +420,7 @@ public class GameManager : MonoBehaviour
                 commands = new List<Command>
                 {
                     new ConsumeResourceCommand { resourceType = ConsumeResourceCommand.ResourceType.Stress, amount = -20 },
-                    new ModifyAttributeCommand { modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.INT, 2f, "智慧启迪") },
+                    new ModifyAttributeCommand { duration = 2, modifier = new AttributeModifier(ModifierType.Add, AttributeTarget.INT, 2f, "智慧启迪") },
                     new ApplyStatusCommand { statusType = StatusType.Enlightened, duration = 2 }
                 }
             },
@@ -860,7 +893,7 @@ public class GameManager : MonoBehaviour
     public void StartBattle()
     {
         Log.Info("[GameManager] StartBattle() 被调用");
-        int template = Random.Range(0, 10);
+        int template = RandomProvider.Current.Range(0, 10);
         enemyTeamData = CreateEnemyTeamFromTemplate(template);
         foreach (var u in enemyTeamData)
         {

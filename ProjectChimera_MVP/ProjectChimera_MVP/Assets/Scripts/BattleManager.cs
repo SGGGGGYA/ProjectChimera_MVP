@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
+using ProjectChimera.Core;
 
 public enum BattleInputState
 {
@@ -12,7 +13,7 @@ public enum BattleInputState
     Targeting      // 正在选目标：Tab 切换，空格确认
 }
 
-public class BattleManager : MonoBehaviour
+public class BattleManager : MonoBehaviour, IBattleContext
 {
     public GameObject damagePopupPrefab;
 
@@ -40,6 +41,11 @@ public class BattleManager : MonoBehaviour
     public bool IsBattleOver => battleOver;
     private string battleResult;
     private Coroutine hitFeedbackRoutine;
+
+    // 回合状态提供者（由 BattleSetup 注入）。生产路径 BattleSetup 一定会先注入；
+    // 老测试/编辑器临时用场景中如果没有 BattleSetup，需要在测试 SetUp 里手动赋值。
+    [System.NonSerialized]
+    public ITurnStateProvider TurnState;
 
     // 回合追踪
     private UnitData lastTurnUnit;       // 上一轮行动的单位
@@ -155,9 +161,9 @@ public class BattleManager : MonoBehaviour
         }
 
         if (battleOver) return;
-        if (TurnManager.Instance == null) return;
+        if (TurnState == null) return;
 
-        var current = TurnManager.Instance.currentUnit;
+        var current = TurnState.CurrentUnit;
         if (current != lastTurnUnit)
         {
             lastTurnUnit = current;
@@ -175,7 +181,7 @@ public class BattleManager : MonoBehaviour
                 skillBarController.RefreshSkills(lastTurnUnit);
         }
 
-        if (!TurnManager.Instance.isPlayerTurn)
+        if (!TurnState.IsPlayerTurn)
         {
             if (skillBarController != null)
                 skillBarController.RefreshSkills(null);
@@ -401,7 +407,7 @@ public class BattleManager : MonoBehaviour
 
     public void SelectSkill(int skillIndex)
     {
-        UnitData attacker = TurnManager.Instance?.currentUnit;
+        UnitData attacker = TurnState?.CurrentUnit;
         if (attacker == null || skillIndex < 0 || skillIndex >= attacker.skills.Count)
         {
             Log.Warn($"[技能] 无效的技能索引: {skillIndex}");
@@ -426,7 +432,7 @@ public class BattleManager : MonoBehaviour
 
     void CheckSkillKeyPress()
     {
-        UnitData attacker = TurnManager.Instance.currentUnit;
+        UnitData attacker = TurnState.CurrentUnit;
         if (attacker == null || attacker.skills.Count == 0) return;
 
         int key = -1;
@@ -470,7 +476,7 @@ public class BattleManager : MonoBehaviour
                 result = enemyUnits.Contains(unit);
                 break;
             case SkillTargetType.Self:
-                result = unit == TurnManager.Instance?.currentUnit;
+                result = unit == TurnState?.CurrentUnit;
                 break;
             default:
                 result = false;
@@ -497,7 +503,7 @@ public class BattleManager : MonoBehaviour
     void EnterTargetingMode()
     {
         Log.Info("EnterTargetingMode 被调用");
-        UnitData attacker = TurnManager.Instance.currentUnit;
+        UnitData attacker = TurnState.CurrentUnit;
         if (attacker == null || pendingSkill == null) { CancelSkillSelection(); return; }
 
         if (!IsSkillUsableFromRank(attacker, pendingSkill))
@@ -723,7 +729,7 @@ public class BattleManager : MonoBehaviour
 
     void ConfirmTarget()
     {
-        UnitData attacker = TurnManager.Instance.currentUnit;
+        UnitData attacker = TurnState.CurrentUnit;
         if (attacker == null || pendingSkill == null) return;
 
         UnitData target = validTargets != null && targetCycleIndex >= 0 && targetCycleIndex < validTargets.Count
@@ -795,6 +801,10 @@ public class BattleManager : MonoBehaviour
             CommandExecutor.Execute(attacker, skill, target, this, playerUnits, enemyUnits);
         }
 
+        // 播放攻击动画
+        string animName = string.IsNullOrEmpty(skill.animationName) ? attacker.attackAnimName : skill.animationName;
+        attacker.Play(animName);
+
         // 移位(推进/击退/冲锋)
         if (skill.targetShift != 0 && target != null && target.currentHP > 0)
             ApplyRankShift(target, skill.targetShift, enemyUnits.Contains(target) ? enemyUnits : playerUnits);
@@ -838,7 +848,7 @@ public class BattleManager : MonoBehaviour
 
     void DoBasicAttack()
     {
-        UnitData attacker = TurnManager.Instance.currentUnit;
+        UnitData attacker = TurnState.CurrentUnit;
         if (attacker == null) return;
         if (!playerUnits.Contains(attacker)) return;
 
@@ -861,12 +871,16 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        attacker.Play(attacker.attackAnimName);
+
         if (!CombatSystem.IsHit(attacker, target))
         {
             BattleLog.Add($"{attacker.unitName} 攻击 {target.unitName} —— <color=#aaaaaa>未命中！</color>");
             SpawnDamagePopup(target.transform.position + Vector3.up * 1.5f, 0, PopupType.Miss);
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_MISS);
+            // 触发 OnDodge 特质（被攻击目标闪避）
+            QuirkTriggerSystem.CheckTriggers(target, QuirkTriggerType.OnDodge);
             StressManager.AddStress(attacker, 2, StressTag.Combat);
             if (!battleOver)
                 EndPlayerTurn();
@@ -889,7 +903,9 @@ public class BattleManager : MonoBehaviour
 
     void EndPlayerTurn()
     {
-        TurnManager.Instance?.EndTurn();
+        // 不再直接调 TurnManager.Instance.EndTurn()，改为发布事件让 TurnManager 自己处理
+        // 这样 BattleManager ↔ TurnManager 没有任何命令式调用，循环依赖彻底消除
+        BattleEvents.RaiseEndTurnRequested();
     }
 
     // ==================== 公共伤害方法 ====================
@@ -943,10 +959,19 @@ public class BattleManager : MonoBehaviour
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(isCrit ? AudioKeys.SFX_CRIT : GetHitSoundKey(attacker));
             if (isCrit)
-                VFXManager.ScreenShake(0.4f, 0.25f);
+            {
+                // 触发 OnCrit 特质
+                QuirkTriggerSystem.CheckTriggers(attacker, QuirkTriggerType.OnCrit);
+                VFXManager.ScreenShake(0.5f, 0.35f);
+                VFXManager.HitStop(0.06f);
+                VFXManager.FlashScreen(new Color(1f, 1f, 1f, 0.3f), 0.25f);
+                VFXManager.FlashSkeleton(target, Color.red, 0.2f);
+            }
             else
-                VFXManager.ScreenShake(0.15f, 0.1f);
-            VFXManager.FlashDamage(target);
+            {
+                VFXManager.ScreenShake(0.2f, 0.15f);
+                VFXManager.FlashSkeleton(target, Color.white, 0.1f);
+            }
             VFXManager.PlayHitEffect(target.transform.position + Vector3.up * 0.5f);
         }
 
@@ -966,12 +991,13 @@ public class BattleManager : MonoBehaviour
         else if (target.isPlayer && target.currentHP <= 0 && target.isOnDeathsDoor)
         {
             target.currentHP = 0;
-            float roll = Random.value;
+            float roll = RandomProvider.Current.Value;
             bool survived = roll < target.deathsDoorResist;
             BattleLog.Add($"<color=red>[死亡之门] {target.unitName} 死亡抗性判定: {(survived ? "存活" : "死亡")} (roll:{roll:F2} < resist:{target.deathsDoorResist})</color>");
             if (survived)
             {
                 target.currentHP = 1;
+                target.Revive();  // 死亡之门存活：立刻恢复动画
                 StressManager.AddStress(target, 20, StressTag.Combat);
             }
             else
@@ -987,6 +1013,9 @@ public class BattleManager : MonoBehaviour
             target.currentHP = 0;
             target.UpdateHPUI();
         }
+
+        if (damage > 0)
+            target.Play(target.damagedAnimName);
 
         if (damage > 0)
             StressManager.CheckResolve(target, this);
@@ -1005,6 +1034,8 @@ public class BattleManager : MonoBehaviour
 
         if (target.currentHP <= 0)
         {
+            if (!target.isOnDeathsDoor)
+                target.Play(target.deathAnimName);
             BattleLog.Add($"{target.unitName} 被击败！");
             AudioManager.Instance?.PlaySFX(AudioKeys.SFX_DEFEAT);
             // 触发 OnKill 特质
@@ -1244,12 +1275,19 @@ public class BattleManager : MonoBehaviour
         if (victoryPanel != null) victoryPanel.SetActive(false);
     }
 
-    public UnitData GetFirstAlive(List<UnitData> units)
+    public UnitData GetFirstAlive(IReadOnlyList<UnitData> units)
     {
+        if (units == null) return null;
         foreach (var u in units)
-            if (u.currentHP > 0) return u;
+            if (u != null && u.currentHP > 0) return u;
         return null;
     }
+
+    // ==================== IBattleContext 实现（用于 TurnManager 解耦）====================
+
+    IReadOnlyList<UnitData> IBattleContext.PlayerUnits => playerUnits;
+    IReadOnlyList<UnitData> IBattleContext.EnemyUnits => enemyUnits;
+    BattleManager IBattleContext.RawBattleManager => this;
 
     // ==================== 受击动画 ====================
 
@@ -1288,7 +1326,7 @@ public class BattleManager : MonoBehaviour
     void AttemptRetreat()
     {
         if (battleOver) return;
-        if (!TurnManager.Instance.isPlayerTurn)
+        if (!TurnState.IsPlayerTurn)
         {
             BattleLog.Add("[撤退] 只有玩家回合才能撤退");
             return;
@@ -1301,7 +1339,7 @@ public class BattleManager : MonoBehaviour
         foreach (var unit in alive)
         {
             float chance = Mathf.Max(0.1f, 0.4f - Mathf.Max(0, unit.stress - 100) * 0.01f);
-            if (Random.value >= chance)
+            if (RandomProvider.Current.Value >= chance)
             {
                 allSucceed = false;
                 StressManager.AddStress(unit, 30, StressTag.Combat);
@@ -1314,7 +1352,10 @@ public class BattleManager : MonoBehaviour
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_RETREAT);
             foreach (var unit in alive)
+            {
                 StressManager.AddStress(unit, 15, StressTag.Combat);
+                unit.CleanupForRetreat();  // 撤退时清空动画轨道
+            }
             ReturnToMap();
         }
         else
@@ -1348,6 +1389,8 @@ public class BattleManager : MonoBehaviour
                 data.rank = unit.rank;
                 data.currentHP = unit.currentHP;
                 data.maxHp = unit.MaxHp;
+                // 同步 V0.5 加点系统：累加的战斗未分配点写回持久化层
+                data.unassignedPoints = unit.unassignedPoints;
             }
             gm.ReturnToWorldMap();
         }
