@@ -1,0 +1,236 @@
+{
+  "main": {
+    "id": "15177e746b806281",
+    "type": "split",
+    "children": [
+      {
+        "id": "7a1df5c1c08b05ce",
+        "type": "tabs",
+        "dimension": 35.043988269794724,
+        "children": [
+          {
+            "id": "6a5e54ed8ecfb93c",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "obs文件夹/未命名.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "未命名"
+            }
+          }
+        ]
+      },
+      {
+        "id": "d1d0bb2b6695ac8d",
+        "type": "tabs",
+        "dimension": 64.95601173020528,
+        "children": [
+          {
+            "id": "81d35855a58d111f",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "关系图谱"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "a63bb0de938a0ec7",
+    "type": "split",
+    "children": [
+      {
+        "id": "5bf554b12d294b22",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e6676471991d0c3a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "e13159bddb14f1cf",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "aff3e0a5df5a805e",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "29642f1218bbe90d",
+    "type": "split",
+    "children": [
+      {
+        "id": "3369317c401c703c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "921a5e6a33cd0a59",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "8d0c2430325b0295",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "7d893e9f4200dd9d",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "fa91c00962dd1e0a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "77e181d3d9fdbdc8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "81d35855a58d111f",
+  "lastOpenFiles": [
+    "analysis/A4_类与模块依赖图.md",
+    "项目概览/Project Chimera 项目概览.md",
+    "analysis/A2_未实现特性清单.md",
+    "未命名.canvas",
+    "2026-06-04.md",
+    "设计文档/角色系统融合重构方案.md",
+    "参考资料/暗黑地牢英雄代码实现.md",
+    "obs文件夹/未命名.md",
+    "项目概览/文件结构.md",
+    "参考资料/Subagent 提示词存档.md",
+    "技术架构/Git工作流规范.md",
+    "技术架构/技术规格书.md",
+    "设计文档/英雄与职业设计.md",
+    "设计文档/数组设计重构报告.md",
+    "设计文档/数值体系讨论总结.md",
+    "设计文档/核心数值框架.md",
+    "任务规划/报错与调试记录.md",
+    "任务规划/压力系统开发任务规划.md",
+    "任务规划/任务3-新内容与系统开发.md",
+    "任务规划/任务2-核心架构重构.md",
+    "任务规划/任务1-战斗系统稳定与Bug修复.md",
+    "状态追踪/MVP行动路线图与关键决策记录.md",
+    "状态追踪/项目状态记录.md",
+    "项目概览/术语表.md",
+    "参考资料",
+    "技术架构",
+    "设计文档",
+    "任务规划",
+    "状态追踪",
+    "项目概览",
+    "欢迎.md",
+    "obs文件夹"
+  ]
+}
