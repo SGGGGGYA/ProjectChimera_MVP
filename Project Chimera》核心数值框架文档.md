@@ -4,21 +4,21 @@
 
 # 《Project Chimera》核心数值框架文档
 
-**文档版本**：V3.0（勘误表重写）
+**文档版本**：V4.0（V0.5 推进后重写）
 **关联文档**：游戏设计技术规格书 V2.0
 **创建日期**：2026-05-05
 **最后更新**：2026-06-09
 **负责模块**：数值策划
 
-> ⚠️ **勘误表更新说明（V3.0 / 2026-06-09）**：本版本对 V2.0 勘误表进行系统性刷新，处理以下四类问题：
-> 1. **修复** —— 代码已对齐设计但勘误表漏标：#1 防御公式、#3 命中溢出转暴击、#5 暴击效果、#12 未命中惩罚（V3.0 写入时发现三处调用点已实现）
-> 2. **勘误** —— 勘误表本身的数值与代码不一致：#2 命中系数（原写 1%/点 → 实测 0.3%/点）、#4 暴击系数（原写 1%/点 → 实测 0.5%/点）
-> 3. **登记主动平衡调整** —— #2 #4 系数整体下调系开发期主动决策（非缺陷），本次正式登记入档
-> 4. **遗留项** —— 仍未实现的功能（#6~#10）继续追踪
+> ⚠️ **勘误表更新说明（V4.0 / 2026-06-09）**：本版本对 V3.0 勘误表进行系统性刷新，处理 V0.5 推进后的真实状态：
+> 1. **修复** —— V0.5 完整推进：#6 经验曲线（1.8 次方）、#7 加点系统、#8 命名时刻（V0.5 适配）、#9 等级上限（5→10）、#10 随机浮动（±10%）
+> 2. **保留** —— V3.0 已修复项维持：#1 防御公式、#3 命中溢出转暴击、#5 暴击效果、#11 压力抗性、#12 未命中惩罚
+> 3. **保留主动平衡调整** —— #2 命中系数（0.3%/点）、#4 暴击系数（0.5%/点）维持 5 月主动下调
+> 4. **设计妥协登记** —— #8 命名时机从设计文档"4-6 级任意"固定为 6 级；#9 等级上限按冒险者 10 级实现，领袖 15 级待领袖系统建立
 >
 > 以下勘误表反映的是**代码与设计的当前真实差距**。
 
-## 代码实现勘误表（V3.0 / 2026-06-09）
+## 代码实现勘误表（V4.0 / 2026-06-09）
 
 > 状态图例：✅ 已修复 / 🔧 主动平衡调整 / ❌ 仍未实现 / ⚠️ 设计待跟进
 
@@ -28,12 +28,12 @@
 | 2 | 命中公式 | `0.5%/点`，上限 95% | `HIT_ACC_SCALE = 0.003f`（**0.3%/点**），范围 0.10~0.95 | 🔧 主动调整 | 系数从文档 0.5% 下调至 0.3%，**整体压低战斗节奏**。如需恢复原设计需全局调整装备/怪癖数值 |
 | 3 | 命中溢出转暴击 | 溢出命中率按 30% 转化 | `CRIT_OVERFLOW_RATE = 0.30f` ([CombatSystem.cs:13, 25-26](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L13-L26)) | ✅ 已实现 | V2.0 勘误表漏标，实际代码已实现 |
 | 4 | 暴击判定 | 基础 5% + 溢出转化 + 装备 | `BASE_CRIT = 0.03f`（3%），`CRT_CRIT_SCALE = 0.005f`（**0.5%/点**），上限 70% | 🔧 主动调整 | 基础值 5%→3%、CRT 系数 1%/点→0.5%/点，与 #2 同步下调；溢出转化 30% 已实现 |
-| 5 | 暴击效果 | 无视 50% DEF + 攻击方 -5 压力 | 1.5× 倍率 + `CRIT_DEF_IGNORE=0.5f` ([CombatSystem.cs:14, 41-42](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L14-L41)) + `onCriticalDeal = -5` ([StressConfig.cs:15](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressConfig.cs#L15)) | ✅ 已实现 | V2.0 勘误表漏标，实际代码已实现 DEF 无视与暴击减压 |
-| 6 | 经验曲线 | `100 * 等级^1.8`（指数增长） | `100 * 2^(L-1)`，上限 5 级 ([UnitData.cs:665-670](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L665-L670)) | ❌ 未实现 | 曲线形状不同，等级上限也不同。设计 10/15 级 vs 代码 5 级 |
-| 7 | 属性成长 | 每级 3 点可分配属性点 | 代码**自动分配**主属性 ([UnitData.cs:683-691](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L683-L691)) | ❌ 未实现 | MVP 阶段简化，未引入加点系统 |
-| 8 | 命名时刻 | 全属性 +10%、专属技能槽、压力上限 +20、命名怪癖 | 代码**未实现**命名系统 | ❌ 未实现 | 命名系统完全缺失 |
-| 9 | 等级上限 | 冒险者 10 级 / 领袖 15 级 | 代码上限为 **5 级** | ⚠️ 设计待跟进 | MVP 阶段自动缩减。需在恢复加点系统时同步恢复等级上限 |
-| 10 | 随机浮动 | 0.9~1.1 均匀随机 | `Random.Range(0.85f, 1.15f)` ±15% ([CombatSystem.cs:36](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L36)) | ❌ 未实现 | 10%→15% 差异，整体伤害区间更宽 |
+| 5 | 暴击效果 | 无视 50% DEF + 攻击方 -5 压力 | 1.5× 倍率 + `CRIT_DEF_IGNORE=0.5f` ([CombatSystem.cs:14, 41-42](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L14-L41)) + `onCriticalDeal = -5` ([StressConfig.cs:15](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressConfig.cs#L15)) | ✅ 已实现 | DEF 无视与暴击减压均已实现 |
+| 6 | 经验曲线 | `100 * L^1.8` 指数增长 | `Mathf.RoundToInt(100f * Mathf.Pow(lvl, 1.8f))` ([UnitData.cs:720](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L720)) | ✅ 已修复 | V0.5 从 `100 * 2^(L-1)` 倍数曲线切换到设计 1.8 次方指数曲线。期望：1→2:100, 2→3:348, 3→4:722, 4→5:1213, 5→6:1812, 6→7:2523, 7→8:3346, 8→9:4280, 9→10:5315 |
+| 7 | 属性成长 | 每级 3 点可分配属性点 | 升级时 `unassignedPoints += POINTS_PER_LEVEL (3)` ([UnitData.cs:734](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L734)) + `AllocatePoint(StatType)` ([UnitData.cs:752](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L752)) | ✅ 已修复 | V0.5 引入完整加点系统：升级不再自动加主属性，改为累加 3 点待玩家分配。LevelUpTests 11 个新测试覆盖 |
+| 8 | 命名时刻 | 全属性 +10%、专属技能槽、压力上限 +20、命名怪癖、4-6 级任意触发 | 全实现，**固定 Level 6 触发** ([UnitData.cs:307, 743](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L307-L743)) | ✅ 已修复（V0.5 适配） | 命名时机从设计文档"4-6 级任意"固定为 6 级（毕业半程点）。NamingMomentTests 全部测试已迁移到 Level 6 验证 |
+| 9 | 等级上限 | 冒险者 10 级 / 领袖 15 级 | `MAX_LEVEL = 10` 统一封顶 ([UnitData.cs:305, 719](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/UnitData.cs#L305-L719)) | ✅ 已修复（V0.5 部分） | 冒险者 10 级已实现，**领袖 15 级待领袖系统建立后扩展**（当前无领袖战斗单位） |
+| 10 | 随机浮动 | 0.9~1.1 均匀随机 | `Random.Range(0.9f, 1.1f)` ±10% ([CombatSystem.cs:36](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Combat/CombatSystem.cs#L36)) | ✅ 已修复 | V0.5 从 ±15% 回归设计 ±10%，与命中/暴击主动调低逻辑一致 |
 | 11 | 压力抗性 | 0%~60% 有效范围，上限 90% | `baseResist=0`, `resistPerLevel=0.02`, `maxResist=0.9`, `resistDiminishThreshold=0.6` ([StressConfig.cs:18-21](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressConfig.cs#L18-L21)) + 衰减逻辑 ([StressManager.cs:18-25](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Stress/StressManager.cs#L18-L25)) | ✅ 已实现 | 60% 后按 50% 折算继续生效，90% 封顶 |
 | 12 | 未命中惩罚 | 攻击方压力 +2 | 三处调用点：AoE 未命中 [Command.cs:61](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Commands/Command.cs#L61) / 单体未命中 [Command.cs:86](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/Commands/Command.cs#L86) / 战斗管理器未命中 [BattleManager.cs:878](file:///e:/游/ProjectChimera_MVP/ProjectChimera_MVP/Assets/Scripts/BattleManager.cs#L878) — 均 `StressManager.AddStress(attacker, 2, StressTag.Combat)` | ✅ 已实现 | V2.0 / V3.0 勘误表均漏标。**注意**：实现分散在三处调用点而非 IsHit() 内部，因此 EditMode 概率采样测试不受影响 |
 

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Spine.Unity;
 using UnityEngine;
 
 public class UnitData : MonoBehaviour
@@ -60,6 +61,24 @@ public class UnitData : MonoBehaviour
         }
     }
 
+    /// <summary>每回合结束调用：递减所有带 duration 的 modifier，到期则移除</summary>
+    public void TickModifiers()
+    {
+        if (modifiers == null || modifiers.Count == 0) return;
+        for (int i = modifiers.Count - 1; i >= 0; i--)
+        {
+            var m = modifiers[i];
+            if (m.duration <= 0) continue; // 永久 buff 跳过
+            m.remainingTurns--;
+            modifiers[i] = m;
+            if (m.remainingTurns <= 0)
+            {
+                BattleLog.Add($"[属性] {unitName} 的 [{m.target} {m.value}] 持续时间到，已移除");
+                modifiers.RemoveAt(i);
+            }
+        }
+    }
+
     public void RemoveQuirkModifiers(string quirkId)
     {
         string source = "quirk_" + quirkId;
@@ -106,8 +125,37 @@ public class UnitData : MonoBehaviour
 
     int GetBaseStat(StatType stat)
     {
-        int classBase = classData != null ? GetClassBaseByType(stat) : 0;
-        return classBase + GetPrimaryByType(stat);
+        // 单一来源：用 DerivedAttributes 统一计算所有派生属性。
+        // 之前 SPD/ACC/DOD/CRT 直接走 GetClassBaseByType → 全部 0（致命 Bug）。
+        // 现在 classData=null 时 AGI 仍然按 0 算，CRUSHER 不会"白送"基础值。
+        int baseHp = classData != null ? classData.baseHp : 0;
+        int baseSpd = classData != null ? classData.baseSPD : 0;
+        int baseAcc = classData != null ? classData.baseACC : 0;
+        int baseDod = classData != null ? classData.baseDOD : 0;
+        int baseCrt = classData != null ? classData.baseCRT : 0;
+
+        var derived = new DerivedAttributes(
+            primaryAttributes,
+            baseDefense,
+            baseHp,
+            baseSpd,
+            baseAcc,
+            baseDod,
+            baseCrt);
+
+        switch (stat)
+        {
+            case StatType.VIT: return primaryAttributes.VIT;
+            case StatType.STR: return GetClassBaseByType(stat) + primaryAttributes.STR;
+            case StatType.AGI: return primaryAttributes.AGI;
+            case StatType.INT: return GetClassBaseByType(stat) + primaryAttributes.INT;
+            case StatType.DEF: return GetClassBaseByType(stat);
+            case StatType.SPD: return derived.SPD;
+            case StatType.ACC: return derived.ACC;
+            case StatType.DOD: return derived.DOD;
+            case StatType.CRT: return derived.CRT;
+        }
+        return 0;
     }
 
     int GetClassBaseByType(StatType stat)
@@ -120,18 +168,10 @@ public class UnitData : MonoBehaviour
             case StatType.AGI: return classData.baseAGI;
             case StatType.INT: return classData.baseINT;
             case StatType.DEF: return classData.baseDEF;
-        }
-        return 0;
-    }
-
-    int GetPrimaryByType(StatType stat)
-    {
-        switch (stat)
-        {
-            case StatType.VIT: return primaryAttributes.VIT;
-            case StatType.STR: return primaryAttributes.STR;
-            case StatType.AGI: return primaryAttributes.AGI;
-            case StatType.INT: return primaryAttributes.INT;
+            case StatType.SPD: return classData.baseSPD;
+            case StatType.ACC: return classData.baseACC;
+            case StatType.DOD: return classData.baseDOD;
+            case StatType.CRT: return classData.baseCRT;
         }
         return 0;
     }
@@ -157,6 +197,7 @@ public class UnitData : MonoBehaviour
         int sum = 0;
         foreach (var q in quirks)
             sum += q.GetFlatMod(stat);
+        if (namingQuirk != null) sum += namingQuirk.GetFlatMod(stat);
         return sum;
     }
 
@@ -165,6 +206,7 @@ public class UnitData : MonoBehaviour
         float sum = 0;
         foreach (var q in quirks)
             sum += q.GetPercentMod(stat);
+        if (namingQuirk != null) sum += namingQuirk.GetPercentMod(stat);
         return sum;
     }
 
@@ -243,7 +285,30 @@ public class UnitData : MonoBehaviour
     [Header("经验等级")]
     public int level = 1;
     public int currentExp;
+    /// <summary>未分配属性点（V0.5 引入：升级不再自动加主属性，改为累加点待玩家分配）</summary>
+    public int unassignedPoints;
     public int ExpToNextLevel => GetExpForLevel(level);
+
+    // ========== 命名系统 ==========
+
+    [Header("命名系统")]
+    /// <summary>是否已命名（炮灰→英雄的质变节点，一次性触发）</summary>
+    public bool isNamed;
+    /// <summary>命名后压力上限额外加值（默认 0，命名后 =20）</summary>
+    public int stressCapBonus;
+    /// <summary>命名解锁的专属技能（命名后由玩家在英雄厅装备）</summary>
+    public SkillData exclusiveSkill;
+    /// <summary>命名怪癖（独立于 quirks 列表，不占 5 个怪癖位）</summary>
+    public Quirk namingQuirk;
+
+    /// <summary>V0.5: 等级上限 10（设计文档 2.3 节；领袖 15 待领袖系统建立后扩展）</summary>
+    public const int MAX_LEVEL = 10;
+    /// <summary>命名时机：升到 6 级时触发（设计文档"4-6 级"区间，固定为毕业半程点）</summary>
+    public const int NAMING_LEVEL = 6;
+    public const int NAMING_STRESS_BONUS = 20;
+    public const float NAMING_ALL_STAT_PERCENT = 0.10f;
+    /// <summary>每次升级获得的可分配主属性点（设计文档 2.3 节）</summary>
+    public const int POINTS_PER_LEVEL = 3;
 
     [Header("血条引用")]
     public SpriteRenderer hpBarFill;
@@ -263,6 +328,88 @@ public class UnitData : MonoBehaviour
     [Header("状态效果")]
     public List<StatusEffect> statusEffects = new List<StatusEffect>();
 
+    // ========== Spine 动画 ==========
+
+    [Header("Spine 动画名")]
+    public string idleAnimName = "Idle";
+    public string attackAnimName = "atk";
+    public string damagedAnimName = "Damaged";
+    public string deathAnimName = "Death";
+
+    public bool isDead => currentHP <= 0;
+
+    /// <summary>从死亡/濒死状态恢复（死亡之门存活、战后复活等）— 立刻中断死亡动画并播 Idle</summary>
+    public void Revive()
+    {
+        Log.Info($"[动画] {unitName} Revive() 被调用，currentHP={currentHP}");
+        // bump guard 让所有在飞的 Complete 回调失效
+        int guard = ++idleGuard;
+        pendingIdle = false;
+
+        var sk = GetSkeleton();
+        if (sk == null || sk.AnimationState == null) return;
+
+        // 如果当前 track 0 是死亡动画，强制清空并切回 Idle
+        var currentT0 = sk.AnimationState.GetCurrent(0);
+        if (currentT0 != null && currentT0.Animation != null && currentT0.Animation.Name == deathAnimName)
+        {
+            Log.Info($"[动画] {unitName} 正在播死亡动画，Revive 强制切回 Idle");
+            sk.AnimationState.SetAnimation(0, idleAnimName, true);
+        }
+        else if (sk.AnimationState.GetCurrent(0) == null)
+        {
+            // 当前没在播任何东西，补一个 Idle
+            Play(idleAnimName, loop: true);
+        }
+    }
+
+    /// <summary>撤退/离场前调用 — 清空所有动画轨道避免残留</summary>
+    public void CleanupForRetreat()
+    {
+        idleGuard++;
+        pendingIdle = false;
+        var sk = GetSkeleton();
+        if (sk != null && sk.AnimationState != null)
+        {
+            sk.AnimationState.ClearTracks();
+        }
+    }
+
+    SkeletonAnimation cachedSkeleton;
+
+    public SkeletonAnimation GetSkeleton()
+    {
+        if (cachedSkeleton == null)
+            cachedSkeleton = GetComponentInChildren<SkeletonAnimation>(true);
+        return cachedSkeleton;
+    }
+
+    /// <summary>在指定轨道上播放动画。loop=false 时播完会自动回到 Idle（已死亡则不回）。</summary>
+    public void Play(string name, bool loop = false, int track = 0)
+    {
+        var sk = GetSkeleton();
+        if (sk == null || sk.AnimationState == null) return;
+        var anim = sk.skeleton.Data.FindAnimation(name);
+        if (anim == null) { Log.Warn($"[动画] {unitName} 找不到动画 {name}"); return; }
+
+        Log.Info($"[动画] {unitName} Play({name}) track={track} loop={loop} duration={anim.duration}s");
+        var entry = sk.AnimationState.SetAnimation(track, name, loop);
+
+        if (entry != null && !loop)
+        {
+            int guard = ++idleGuard;
+            entry.Complete += (te) =>
+            {
+                Log.Info($"[动画] {unitName} Complete 事件触发 (guard={guard})");
+                if (idleGuard == guard && !isDead)
+                    pendingIdle = true;
+            };
+        }
+    }
+
+    bool pendingIdle;
+    int idleGuard;
+
     void Start()
     {
         if (selectCircle == null)
@@ -270,6 +417,46 @@ public class UnitData : MonoBehaviour
             var found = transform.Find("SelectCircle");
             if (found != null)
                 selectCircle = found.gameObject;
+        }
+
+        // 缓存 Spine 骨骼，开始播放 Idle
+        Play(idleAnimName, loop: true);
+    }
+
+    int frameSkip;
+    string lastT0, lastT1;
+
+    void LateUpdate()
+    {
+        if (isDead) return;
+        var sk = GetSkeleton();
+        if (sk == null || sk.AnimationState == null) return;
+
+        if (pendingIdle)
+        {
+            pendingIdle = false;
+            Log.Info($"[动画] {unitName} LateUpdate 消费 pendingIdle，恢复 Idle");
+            Play(idleAnimName, loop: true);
+            return;
+        }
+
+        if (sk.AnimationState.GetCurrent(0) == null)
+        {
+            Log.Info($"[动画] {unitName} track 0 为空，补 Idle");
+            Play(idleAnimName, loop: true);
+        }
+
+        if (++frameSkip % 60 == 0)
+        {
+            var t0 = sk.AnimationState.GetCurrent(0);
+            var t1 = sk.AnimationState.GetCurrent(1);
+            string n0 = t0?.Animation?.Name ?? "null";
+            string n1 = t1?.Animation?.Name ?? "null";
+            if (n0 != lastT0 || n1 != lastT1)
+            {
+                lastT0 = n0; lastT1 = n1;
+                Log.Info($"[动画] {unitName} 状态 T0={n0} T1={n1}");
+            }
         }
     }
 
@@ -353,15 +540,18 @@ public class UnitData : MonoBehaviour
         }
     }
 
-    /// <summary>获取职业基础HP（不含VIT加成）</summary>
+    /// <summary>获取职业基础HP（不含VIT加成）。优先 classData.baseHp，没有则返回 0。</summary>
     public int GetClassBaseHP()
     {
         if (classData != null) return classData.baseHp;
-        if (unitName.Contains("狂战士")) return 50;
-        if (unitName.Contains("学者")) return 25;
-        if (unitName.Contains("战士")) return 40;
-        if (unitName.Contains("游侠")) return 30;
-        return 40;
+        // 反查 GameManager 已加载的职业定义
+        if (GameManager.Instance != null)
+        {
+            var cd = GameManager.Instance.GetClassDefinition(unitName);
+            if (cd != null) return cd.baseHp;
+        }
+        Log.Warn($"[UnitData] {unitName} 找不到 ClassDefinition，baseHp 返回 0");
+        return 0;
     }
 
     public bool ProcessBleed()
@@ -518,39 +708,131 @@ public class UnitData : MonoBehaviour
 
     // ========== 经验升级 ==========
 
+    /// <summary>
+    /// 升到下一级所需经验（设计文档 2.3 节：100 * L^1.8 指数曲线）。
+    /// L=1..MAX_LEVEL；L<=0 视为 100；L>MAX_LEVEL 视为封顶（int.MaxValue）。
+    /// 期望：1→2:100, 2→3:348, 3→4:722, 4→5:1213, 5→6:1812, 6→7:2523, 7→8:3346, 8→9:4280, 9→10:5315
+    /// </summary>
     public static int GetExpForLevel(int lvl)
     {
         if (lvl <= 0) return 100;
-        if (lvl > 5) return int.MaxValue;
-        return 100 * (int)Mathf.Pow(2, lvl - 1);
+        if (lvl >= MAX_LEVEL) return int.MaxValue;
+        return Mathf.RoundToInt(100f * Mathf.Pow(lvl, 1.8f));
     }
 
     public void GainExp(int amount)
     {
-        if (level >= 5) return;
+        if (level >= MAX_LEVEL) return;
         currentExp += amount;
         BattleLog.Add($"[经验] {unitName} 获得 {amount} 经验 ({currentExp}/{ExpToNextLevel})");
 
-        while (currentExp >= ExpToNextLevel && level < 5)
+        while (currentExp >= ExpToNextLevel && level < MAX_LEVEL)
         {
             currentExp -= ExpToNextLevel;
             level++;
-
-            primaryAttributes.VIT++;
-            if (primaryAttributes.STR > primaryAttributes.AGI && primaryAttributes.STR > primaryAttributes.INT)
-                primaryAttributes.STR++;
-            else if (primaryAttributes.AGI > primaryAttributes.STR && primaryAttributes.AGI > primaryAttributes.INT)
-                primaryAttributes.AGI++;
-            else if (isPlayer && skills.Exists(s => s.agiScaling > 0.5f))
-                primaryAttributes.AGI++;
-            else
-                primaryAttributes.STR++;
+            // V0.5: 升级不再自动加主属性，改为累加可分配点
+            unassignedPoints += POINTS_PER_LEVEL;
 
             currentHP = MaxHp;
             UpdateHPUI();
-            BattleLog.Add($"{unitName} 升级到 {level} 级！HP 全恢复");
+            BattleLog.Add($"{unitName} 升级到 {level} 级！+{POINTS_PER_LEVEL} 属性点待分配（剩余 {unassignedPoints}）");
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_LEVEL_UP);
+
+            // 命名时刻：升到 NAMING_LEVEL 时一次性触发
+            if (level >= NAMING_LEVEL && !isNamed)
+                TriggerNamingMoment();
         }
+    }
+
+    /// <summary>
+    /// V0.5 加点系统：从 unassignedPoints 取出 1 点分配到指定主属性。
+    /// 返回是否成功（unassignedPoints <= 0 或 stat 不合法时返回 false）。
+    /// </summary>
+    public bool AllocatePoint(StatType stat)
+    {
+        if (unassignedPoints <= 0) return false;
+        switch (stat)
+        {
+            case StatType.VIT: primaryAttributes.VIT++; break;
+            case StatType.STR: primaryAttributes.STR++; break;
+            case StatType.AGI: primaryAttributes.AGI++; break;
+            case StatType.INT: primaryAttributes.INT++; break;
+            default: return false;
+        }
+        unassignedPoints--;
+        BattleLog.Add($"[属性] {unitName} 分配 1 点 → {stat}（剩余 {unassignedPoints}）");
+        return true;
+    }
+
+    // ========== 命名时刻 ==========
+
+    /// <summary>
+    /// 命名时刻：全属性+10%、压力上限+20、解锁专属技能槽、获得命名怪癖。
+    /// 一次性触发（isNamed 守卫），HP 满血。
+    /// </summary>
+    public void TriggerNamingMoment()
+    {
+        if (isNamed) return;
+        isNamed = true;
+        stressCapBonus = NAMING_STRESS_BONUS;
+        namingQuirk = CreateNamingQuirk();
+        // 命名怪癖为正面怪癖，参与美德概率加成（不占 5 个怪癖位）
+        positiveQuirkCount++;
+
+        // 全属性 +10%：对所有 AttributeTarget 注入 Mul 修饰器
+        // 走 GetFinalStat 现有管线，永久 buff（duration=0）
+        foreach (AttributeTarget target in System.Enum.GetValues(typeof(AttributeTarget)))
+        {
+            modifiers.Add(new AttributeModifier(
+                ModifierType.Mul, target, NAMING_ALL_STAT_PERCENT, "naming_moment", 0));
+        }
+
+        // 满血
+        currentHP = MaxHp;
+        UpdateHPUI();
+
+        // 日志 + 音效
+        BattleLog.Add($"<color=#ffdd44>★★★ 命名时刻 ★★★ {unitName} 从炮灰蜕变为传奇！</color>");
+        BattleLog.Add($"<color=#ffdd44>    → 全属性 +10% | 压力上限 +20 | 解锁专属技能槽 | 获得 [传奇之名] 怪癖</color>");
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioKeys.SFX_LEVEL_UP);
+    }
+
+    /// <summary>
+    /// 按 skillName 在 classData.skillPool 中查找并设为专属技能。
+    /// 找不到时返回 null（调用方应记录 warn）。BattleSetup.CreateUnit 在战斗开始时调用此方法。
+    /// </summary>
+    public SkillData ApplyExclusiveSkillFromId(string skillId)
+    {
+        if (classData == null || classData.skillPool == null) return null;
+        if (string.IsNullOrEmpty(skillId)) return null;
+        SkillData matched = classData.skillPool.Find(s => s != null && s.skillName == skillId);
+        if (matched != null)
+        {
+            exclusiveSkill = matched;
+        }
+        return matched;
+    }
+
+    /// <summary>
+    /// 构造"传奇之名"命名怪癖：+5% ACC、+3% CRT、+5% SPD。
+    /// 独立于 quirks 列表，不占 5 个怪癖位。
+    /// </summary>
+    static Quirk CreateNamingQuirk()
+    {
+        return new Quirk
+        {
+            id = "naming_legacy",
+            localizedName = "传奇之名",
+            isPositive = true,
+            isLocked = true, // 锁定不可移除
+            effects = new List<QuirkEffect>
+            {
+                new QuirkEffect { stat = StatType.ACC, amount = 5, isPercent = true },
+                new QuirkEffect { stat = StatType.CRT, amount = 3, isPercent = true },
+                new QuirkEffect { stat = StatType.SPD, amount = 5, isPercent = true },
+            }
+        };
     }
 }

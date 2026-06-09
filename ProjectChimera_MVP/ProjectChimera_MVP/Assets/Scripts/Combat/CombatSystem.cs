@@ -33,7 +33,7 @@ public static class CombatSystem
         float scaling = attacker.GetEffectiveSTR() * skill.strScaling + attacker.AGI * skill.agiScaling;
         float raw = baseVal + scaling;
 
-        raw *= Random.Range(0.85f, 1.15f);
+        raw *= Random.Range(0.9f, 1.1f);
 
         // 防御效率 = 1 / (1 + DEF * 0.02)，DEF 越高每点收益越低（设计文档 2.2 节）
         float def = target.DEF_Effective;

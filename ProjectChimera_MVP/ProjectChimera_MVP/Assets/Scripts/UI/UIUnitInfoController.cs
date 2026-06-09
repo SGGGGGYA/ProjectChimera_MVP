@@ -71,7 +71,10 @@ public class UIUnitInfoController : MonoBehaviour
         string classTag = currentDisplayed.isPlayer ? "己方" : "敌方";
         lines.Add($"<b>{classTag}</b>");
         lines.Add($"<size=130%><b>{currentDisplayed.unitName}</b></size>");
-        lines.Add($"等级: {currentDisplayed.level}");
+        if (currentDisplayed.isNamed)
+            lines.Add($"等级: {currentDisplayed.level}  <color=#ffdd44>★ 传奇 ★</color>");
+        else
+            lines.Add($"等级: {currentDisplayed.level}");
 
         lines.Add("");
         string hpColor = currentDisplayed.currentHP > 0 ? "white" : "gray";
@@ -101,8 +104,17 @@ public class UIUnitInfoController : MonoBehaviour
         lines.Add($"武器: {weaponName} ({currentDisplayed.weaponAttack})  防具: {armorName}");
         lines.Add($"特质: {currentDisplayed.quirks.Count}个");
 
+        // 命名后专属技能：在英雄厅由玩家从 classData.skillPool 中选出
+        if (currentDisplayed.isNamed)
+        {
+            string exclusiveName = currentDisplayed.exclusiveSkill != null
+                ? $"<color=#ffdd44>{currentDisplayed.exclusiveSkill.skillName}</color>"
+                : "<color=#888888>未选</color>";
+            lines.Add($"<b>传奇专属技能</b>: {exclusiveName}");
+        }
+
         lines.Add("");
-        if (currentDisplayed.level < 5)
+        if (currentDisplayed.level < UnitData.MAX_LEVEL)
         {
             float expPct = (float)currentDisplayed.currentExp / currentDisplayed.ExpToNextLevel;
             int expBarLen = Mathf.RoundToInt(expPct * 15);
