@@ -1,14 +1,25 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using ProjectChimera.Core;
 
-public class TurnManager : MonoBehaviour
+/// <summary>
+/// 回合管理器（解耦后）：
+///   - 实现 <see cref="ITurnStateProvider"/>：让 BattleManager 通过接口查询回合状态
+///   - 持有 <see cref="IBattleContext"/>：把对 BattleManager 的 3 处 FindObjectOfType 全部消除
+///   - 订阅 <see cref="BattleEvents"/>：玩家"结束回合"和"敌人回合完成"改为事件驱动
+///   - 发布 <see cref="BattleEvents"/>：TurnStart / TurnEnd / RoundStart 改为事件广播
+///
+/// 这样 TurnManager ↔ BattleManager 不再有 C# 类级别的相互引用，循环依赖彻底消除。
+/// </summary>
+public class TurnManager : MonoBehaviour, ITurnStateProvider
 {
     [Header("回合设置")]
     public List<UnitData> allUnits = new List<UnitData>();
     private List<UnitData> turnOrder = new List<UnitData>();
-    private int currentTurnIndex = 0;
+    public int currentTurnIndex = 0;
     public int roundCount = 1;
 
     [Header("当前回合")]
@@ -17,10 +28,41 @@ public class TurnManager : MonoBehaviour
 
     public static TurnManager Instance;
 
+    /// <summary>
+    /// 注入的 BattleManager 上下文（由 BattleSetup 在 StartBattle 时设置）。
+    /// 在调用 BattleSetup 前保持 NullBattleContext，所有调用安静 no-op，行为与旧
+    /// `FindObjectOfType<BattleManager>() == null` 兜底一致。
+    /// </summary>
+    public IBattleContext Context { get; set; } = new NullBattleContext();
+
+    // -------- ITurnStateProvider 实现 --------
+
+    public UnitData CurrentUnit => currentUnit;
+    public bool IsPlayerTurn => isPlayerTurn;
+    public int RoundCount => roundCount;
+    public bool IsBattleOver => Context.IsBattleOver;
+
+    public event Action<UnitData> TurnStarted;
+    public event Action<UnitData> TurnEnded;
+    public event Action<int> RoundStarted;
+
     void Awake()
     {
         Instance = this;
+        // 订阅玩家结束回合请求（替代 BattleManager 直接调 TurnManager.Instance.EndTurn）
+        BattleEvents.OnEndTurnRequested += HandleEndTurnRequested;
+        BattleEvents.OnEnemyTurnCompleted += HandleEnemyTurnCompleted;
     }
+
+    void OnDestroy()
+    {
+        BattleEvents.OnEndTurnRequested -= HandleEndTurnRequested;
+        BattleEvents.OnEnemyTurnCompleted -= HandleEnemyTurnCompleted;
+    }
+
+    void HandleEndTurnRequested() => EndTurn();
+
+    void HandleEnemyTurnCompleted(UnitData unit) => EndTurn();
 
     public void InitializeBattle(List<UnitData> playerUnits, List<UnitData> enemyUnits)
     {
@@ -50,14 +92,16 @@ public class TurnManager : MonoBehaviour
     {
         currentTurnIndex = 0;
         BattleLog.Add($"===== 第 {roundCount} 轮开始 =====");
+        // 广播新轮开始（ITurnStateProvider.RoundStarted + BattleEvents）
+        RoundStarted?.Invoke(roundCount);
+        BattleEvents.RaiseRoundStarted(roundCount);
         StartNextTurn();
     }
 
     void StartNextTurn()
     {
-        // 战斗已结束，停止轮转回合
-        BattleManager bm = FindObjectOfType<BattleManager>();
-        if (bm != null && bm.IsBattleOver)
+        // 战斗已结束，停止轮转回合（通过 Context 查询，无须再 FindObjectOfType）
+        if (Context.IsBattleOver)
             return;
 
         if (currentTurnIndex >= turnOrder.Count)
@@ -92,22 +136,18 @@ public class TurnManager : MonoBehaviour
         int bleedDmg = bleedStatus != null ? Mathf.RoundToInt(bleedStatus.value) : 0;
         bool alive = currentUnit.ProcessBleed();
         if (bleedDmg > 0 && alive)
-            bm?.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, bleedDmg, PopupType.Damage);
+            Context.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, bleedDmg, PopupType.Damage);
         if (!alive)
         {
             BattleLog.Add($"{currentUnit.unitName} 因流血而死亡！");
-            bm?.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, 0, PopupType.Damage);
-            BattleManager bmCheck = FindObjectOfType<BattleManager>();
-            if (bmCheck != null)
+            Context.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, 0, PopupType.Damage);
+            bool allEnemyDead = Context.GetFirstAlive(Context.EnemyUnits) == null;
+            bool allPlayerDead = Context.GetFirstAlive(Context.PlayerUnits) == null;
+            if (allEnemyDead || allPlayerDead)
             {
-                bool allEnemyDead = bmCheck.GetFirstAlive(bmCheck.enemyUnits) == null;
-                bool allPlayerDead = bmCheck.GetFirstAlive(bmCheck.playerUnits) == null;
-                if (allEnemyDead || allPlayerDead)
-                {
-                    currentTurnIndex++;
-                    StartNextTurn();
-                    return;
-                }
+                currentTurnIndex++;
+                StartNextTurn();
+                return;
             }
             currentTurnIndex++;
             StartNextTurn();
@@ -115,13 +155,14 @@ public class TurnManager : MonoBehaviour
         }
 
         // 压力阈值检析（心脏衰竭优先，然后崩溃/美德判定）
-        StressManager.CheckResolve(currentUnit, bm);
+        // 直接用 Context（已经是 IBattleContext）
+        StressManager.CheckResolve(currentUnit, Context);
 
         if (currentUnit.currentHP <= 0)
         {
             BattleLog.Add($"{currentUnit.unitName} 在压力判定后死亡！");
-            bool allEnemyDead = bm.GetFirstAlive(bm.enemyUnits) == null;
-            bool allPlayerDead = bm.GetFirstAlive(bm.playerUnits) == null;
+            bool allEnemyDead = Context.GetFirstAlive(Context.EnemyUnits) == null;
+            bool allPlayerDead = Context.GetFirstAlive(Context.PlayerUnits) == null;
             if (allEnemyDead || allPlayerDead)
             {
                 currentTurnIndex++;
@@ -159,6 +200,10 @@ public class TurnManager : MonoBehaviour
         if (isPlayerTurn && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(AudioKeys.SFX_UI_CLICK, 0.5f);
 
+        // 广播回合开始（ITurnStateProvider.TurnStarted + BattleEvents）
+        TurnStarted?.Invoke(currentUnit);
+        BattleEvents.RaiseTurnStarted(currentUnit);
+
         if (!isPlayerTurn)
         {
             if (AudioManager.Instance != null)
@@ -169,26 +214,36 @@ public class TurnManager : MonoBehaviour
 
     public void EndTurn()
     {
+        if (currentUnit == null) return;
         Log.Info($"[TurnManager] {currentUnit.unitName} 结束回合");
+        // 触发 TurnEnd 特质（在 tick 之前）
+        QuirkTriggerSystem.CheckTriggers(currentUnit, QuirkTriggerType.TurnEnd);
         currentUnit.TickStatusEffects();
         currentUnit.TickQuirkCooldowns();
+        currentUnit.TickModifiers();
         StressManager.TickBreakdown(currentUnit);
+        // 广播回合结束
+        TurnEnded?.Invoke(currentUnit);
+        BattleEvents.RaiseTurnEnded(currentUnit);
         currentTurnIndex++;
         StartNextTurn();
     }
 
     IEnumerator EnemyTurn()
     {
-        BattleManager bm = FindObjectOfType<BattleManager>();
+        // 通过 Context.RawContext 逃生通道拿到 BattleManager（仅在 EnemyAIEngine 完全迁移到
+        // IBattleContext 之前使用；TODO: 重构 EnemyAIEngine 后改用 Context）。
+        BattleManager bm = Context.RawContext as BattleManager;
         if (bm == null)
         {
             EndTurn();
             yield break;
         }
 
+        // 改为通过事件通知 TurnManager 推进（EnemyAIEngine 完成后调用 BattleEvents.RaiseEnemyTurnCompleted）
         yield return EnemyAIEngine.ExecuteTurn(currentUnit, bm, this, () =>
         {
-            EndTurn();
+            BattleEvents.RaiseEnemyTurnCompleted(currentUnit);
         });
     }
 
@@ -204,7 +259,7 @@ public class TurnManager : MonoBehaviour
     {
         var players = bm.playerUnits.Where(u => u.currentHP > 0).ToList();
         var front = players.Where(u => u.rank <= 1).ToList();
-        if (front.Count > 0) return front[Random.Range(0, front.Count)];
+        if (front.Count > 0) return front[RandomProvider.Current.Range(0, front.Count)];
         return players.Count > 0 ? players[0] : null;
     }
 

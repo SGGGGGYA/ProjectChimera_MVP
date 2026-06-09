@@ -1,15 +1,6 @@
 using UnityEngine;
 using TMPro;
-
-public enum PopupType
-{
-    Damage,
-    Crit,
-    Heal,
-    Miss,
-    Shield,
-    Stress
-}
+using ProjectChimera.Core;
 
 public class DamagePopup : MonoBehaviour
 {
@@ -25,7 +16,7 @@ public class DamagePopup : MonoBehaviour
 
     void Start()
     {
-        transform.position += new Vector3(Random.Range(-0.3f, 0.3f), 0, 0);
+        transform.position += new Vector3(RandomProvider.Current.Range(-0.3f, 0.3f), 0, 0);
     }
 
     void Update()

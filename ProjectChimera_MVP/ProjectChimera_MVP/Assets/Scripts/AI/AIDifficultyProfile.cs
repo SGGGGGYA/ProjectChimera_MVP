@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 [Serializable]
 public enum AIDifficulty
@@ -24,6 +25,13 @@ public class AIDifficultyProfile
     public float targetVariance = 0.2f;
     public bool useCooldowns = true;
 
+    [Header("连招")]
+    public float comboChance = 0.4f;
+    [Header("位置意识")]
+    public float positionalAwareness = 0.5f;
+    [Header("威胁聚焦")]
+    public float threatFocus = 0.3f;
+
     public static AIDifficultyProfile GetDefault(AIDifficulty diff)
     {
         switch (diff)
@@ -40,7 +48,10 @@ public class AIDifficultyProfile
                     maxSameSkillPerFight = 2,
                     aoePreference = 0.2f,
                     targetVariance = 0.4f,
-                    useCooldowns = false
+                    useCooldowns = false,
+                    comboChance = 0.1f,
+                    positionalAwareness = 0.2f,
+                    threatFocus = 0.1f
                 };
             case AIDifficulty.Normal:
                 return new AIDifficultyProfile
@@ -54,7 +65,10 @@ public class AIDifficultyProfile
                     maxSameSkillPerFight = 3,
                     aoePreference = 0.5f,
                     targetVariance = 0.2f,
-                    useCooldowns = true
+                    useCooldowns = true,
+                    comboChance = 0.4f,
+                    positionalAwareness = 0.5f,
+                    threatFocus = 0.3f
                 };
             case AIDifficulty.Hard:
                 return new AIDifficultyProfile
@@ -68,7 +82,10 @@ public class AIDifficultyProfile
                     maxSameSkillPerFight = 4,
                     aoePreference = 0.7f,
                     targetVariance = 0.1f,
-                    useCooldowns = true
+                    useCooldowns = true,
+                    comboChance = 0.6f,
+                    positionalAwareness = 0.8f,
+                    threatFocus = 0.6f
                 };
             case AIDifficulty.Boss:
                 return new AIDifficultyProfile
@@ -82,7 +99,10 @@ public class AIDifficultyProfile
                     maxSameSkillPerFight = 5,
                     aoePreference = 0.9f,
                     targetVariance = 0.05f,
-                    useCooldowns = true
+                    useCooldowns = true,
+                    comboChance = 0.8f,
+                    positionalAwareness = 1.0f,
+                    threatFocus = 0.9f
                 };
             default:
                 return new AIDifficultyProfile();

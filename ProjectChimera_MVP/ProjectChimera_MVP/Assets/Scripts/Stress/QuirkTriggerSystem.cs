@@ -1,4 +1,5 @@
 using UnityEngine;
+using ProjectChimera.Core;
 
 /// <summary>
 /// 特质触发系统 — 遍历 unit.quirks，匹配触发类型并执行对应的效果
@@ -16,7 +17,7 @@ public static class QuirkTriggerSystem
             if (quirk.triggerType != trigger) continue;
             if (unit.IsQuirkOnCooldown(quirk.id)) continue;
 
-            if (Random.value > quirk.procChance) continue;
+            if (RandomProvider.Current.Value > quirk.procChance) continue;
 
             ApplyQuirkEffect(unit, quirk, context);
         }
@@ -100,6 +101,29 @@ public static class QuirkTriggerSystem
                     unit.SetQuirkCooldown(quirk.id, 1);
                     BattleLog.Add($"[特质] {unit.unitName} 的 [{name}] 触发了！效果: 受到的伤害 +20%");
                 }
+                break;
+
+            // ========== 新增触发类型示例 ==========
+
+            case "baoJiShouHuo":  // 暴击回收：每次暴击回 2 压力
+                StressManager.ReduceStress(unit, 2);
+                unit.SetQuirkCooldown(quirk.id, 1);
+                BattleLog.Add($"[特质] {unit.unitName} 的 [{name}] 触发了！效果: 暴击回收压力 -2");
+                break;
+
+            case "shanBiHuiFu":   // 闪避恢复：闪避时恢复 5%HP
+                int hpRecover = Mathf.RoundToInt(unit.MaxHp * 0.05f);
+                int actual = Mathf.Min(hpRecover, unit.MaxHp - unit.currentHP);
+                unit.currentHP += actual;
+                unit.UpdateHPUI();
+                unit.SetQuirkCooldown(quirk.id, 1);
+                BattleLog.Add($"[特质] {unit.unitName} 的 [{name}] 触发了！效果: 闪避恢复 {actual} HP");
+                break;
+
+            case "jieJuZhiLi":    // 借句之力：每回合结束压力 -1
+                StressManager.ReduceStress(unit, 1);
+                unit.SetQuirkCooldown(quirk.id, 1);
+                BattleLog.Add($"[特质] {unit.unitName} 的 [{name}] 触发了！效果: 回合末减压 -1");
                 break;
 
             default:

@@ -6,6 +6,17 @@ public class UIRoundCounter : MonoBehaviour
     private TextMeshProUGUI label;
     private int lastRound;
 
+    void OnEnable()
+    {
+        // 订阅轮次开始事件，替代 Update() 每帧轮询 TurnManager.Instance.roundCount
+        BattleEvents.OnRoundStarted += HandleRoundStarted;
+    }
+
+    void OnDisable()
+    {
+        BattleEvents.OnRoundStarted -= HandleRoundStarted;
+    }
+
     void Start()
     {
         var canvas = FindObjectOfType<Canvas>();
@@ -42,17 +53,15 @@ public class UIRoundCounter : MonoBehaviour
         Refresh();
     }
 
-    void Update()
+    void HandleRoundStarted(int round)
     {
-        if (TurnManager.Instance == null) return;
-        if (TurnManager.Instance.roundCount != lastRound)
-            Refresh();
+        lastRound = round;
+        if (label != null) label.text = $"===== 第 {round} 轮 =====";
     }
 
     void Refresh()
     {
-        if (label == null || TurnManager.Instance == null) return;
-        lastRound = TurnManager.Instance.roundCount;
+        if (label == null) return;
         label.text = $"===== 第 {lastRound} 轮 =====";
     }
 }

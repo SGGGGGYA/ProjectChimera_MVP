@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ProjectChimera.Core;
 
 [System.Serializable]
 public class ShopData
@@ -35,7 +36,7 @@ public class ShopData
         for (int i = 0; i < eCount; i++)
             shopItemIds.Add(equipments[i].itemId);
 
-        int target = Random.Range(4, 7);
+        int target = RandomProvider.Current.Range(4, 7);
         Shuffle(pool);
         foreach (var item in pool)
         {
@@ -49,7 +50,7 @@ public class ShopData
     {
         for (int i = 0; i < list.Count; i++)
         {
-            int r = Random.Range(i, list.Count);
+            int r = RandomProvider.Current.Range(i, list.Count);
             T tmp = list[i];
             list[i] = list[r];
             list[r] = tmp;

@@ -45,6 +45,7 @@ public class UISkillBarController : MonoBehaviour
             int skillIndex = i; // 闭包捕获
             SkillData skill = unit.skills[i];
             bool canUse = CanUseSkill(unit, skill);
+            bool isExclusive = unit.exclusiveSkill != null && unit.exclusiveSkill.skillName == skill.skillName;
 
             GameObject btnObj = Instantiate(skillButtonPrefab, skillBarContainer);
             btnObj.name = $"Btn_{skill.skillName}";
@@ -53,8 +54,11 @@ public class UISkillBarController : MonoBehaviour
             TextMeshProUGUI tmp = btnObj.GetComponentInChildren<TextMeshProUGUI>();
             if (tmp != null)
             {
-                tmp.text = $"[{i + 1}] {skill.skillName}\n{skill.description}";
-                if (!canUse)
+                string exclusiveTag = isExclusive ? "<color=#ffdd44>★ 传奇专属 ★</color>  " : "";
+                tmp.text = $"{exclusiveTag}[{i + 1}] {skill.skillName}\n{skill.description}";
+                if (isExclusive)
+                    tmp.color = new Color(1f, 0.92f, 0.55f);  // 专属技能: 金色
+                else if (!canUse)
                     tmp.color = Color.gray;
             }
 

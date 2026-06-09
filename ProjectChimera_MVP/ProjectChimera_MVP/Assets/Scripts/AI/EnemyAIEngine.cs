@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using ProjectChimera.Core;
 
 public enum AIRole
 {
@@ -17,17 +18,47 @@ public static class EnemyAIEngine
 {
     static Dictionary<UnitData, Dictionary<string, int>> skillUseCount = new Dictionary<UnitData, Dictionary<string, int>>();
     static Dictionary<UnitData, AIDifficultyProfile> profileCache = new Dictionary<UnitData, AIDifficultyProfile>();
+    static Dictionary<UnitData, string> lastSkillUsed = new Dictionary<UnitData, string>();
+    static Dictionary<string, float> playerThreatScores = new Dictionary<string, float>();
 
     public static void Reset(UnitData unit)
     {
         if (skillUseCount.ContainsKey(unit)) skillUseCount.Remove(unit);
         if (profileCache.ContainsKey(unit)) profileCache.Remove(unit);
+        if (lastSkillUsed.ContainsKey(unit)) lastSkillUsed.Remove(unit);
+        if (playerThreatScores.ContainsKey(unit.unitName)) playerThreatScores.Remove(unit.unitName);
     }
 
     public static void ResetAll()
     {
         skillUseCount.Clear();
         profileCache.Clear();
+        lastSkillUsed.Clear();
+        playerThreatScores.Clear();
+    }
+
+    public static void InitializeThreats(BattleManager bm)
+    {
+        playerThreatScores.Clear();
+        foreach (var pu in bm.playerUnits)
+        {
+            float score = 0;
+            score += pu.GetFinalStat(StatType.STR) * 1.5f;
+            score += pu.GetFinalStat(StatType.INT) * 1.5f;
+            score += pu.MaxHp * 0.1f;
+            score += pu.GetFinalStat(StatType.SPD) * 0.5f;
+            if (pu.skills.Exists(s => s.aiCategory == SkillEffectType.Heal))
+                score += 20;
+            if (pu.skills.Exists(s => s.aiCategory == SkillEffectType.Stress))
+                score += 15;
+            playerThreatScores[pu.unitName] = Mathf.Max(1f, score);
+        }
+    }
+
+    public static void UpdateThreatAfterKill(UnitData killed)
+    {
+        if (playerThreatScores.ContainsKey(killed.unitName))
+            playerThreatScores[killed.unitName] = 0f;
     }
 
     public static AIDifficultyProfile GetProfile(UnitData unit)
@@ -65,6 +96,7 @@ public static class EnemyAIEngine
             if (chosenTarget != null)
             {
                 yield return ExecuteAction(unit, bm, tm, chosenTarget, chosenSkill);
+                TrackLastSkill(unit, chosenSkill);
                 endTurn();
                 yield break;
             }
@@ -79,6 +111,7 @@ public static class EnemyAIEngine
                 BattleLog.Add($"[嘲讽] {unit.unitName} 被嘲讽，强制攻击 {tauntTarget.unitName}");
                 SkillData basicSkill = GetBestDamageSkill(unit, profile);
                 yield return ExecuteAction(unit, bm, tm, tauntTarget, basicSkill);
+                TrackLastSkill(unit, basicSkill);
                 endTurn();
                 yield break;
             }
@@ -96,10 +129,12 @@ public static class EnemyAIEngine
             }
 
             yield return ExecuteAction(unit, bm, tm, chosenTarget, chosenSkill);
+            TrackLastSkill(unit, chosenSkill);
         }
         else
         {
             BattleLog.Add($"[敌人] {unit.unitName} 没有可执行的动作");
+            ClearLastSkill(unit);
         }
 
         yield return new WaitForSeconds(0.3f);
@@ -110,7 +145,7 @@ public static class EnemyAIEngine
     static void ExecuteAfflictedAction(UnitData unit, BattleManager bm,
         ref UnitData target, ref SkillData skill)
     {
-        float roll = Random.value;
+        float roll = RandomProvider.Current.Value;
 
         if (roll < 0.25f)
         {
@@ -167,7 +202,7 @@ public static class EnemyAIEngine
             return;
 
         // Priority 2: Finish death's door targets
-        if (profile.deathDoorFocus > Random.value &&
+        if (profile.deathDoorFocus > RandomProvider.Current.Value &&
             TryFinishDeathsDoor(unit, players, bm, out target, out skill))
             return;
 
@@ -175,31 +210,41 @@ public static class EnemyAIEngine
         if (role == AIRole.Healer && TryEmergencyShield(unit, allies, profile, out target, out skill))
             return;
 
-        // Priority 4: Apply stress (if player stress high)
-        if (profile.tacticalDepth > Random.value * 0.5f &&
+        // Priority 4: Skill combo follow-up
+        if (profile.comboChance > RandomProvider.Current.Value &&
+            TryComboFollowUp(unit, players, profile, out target, out skill))
+            return;
+
+        // Priority 5: Apply stress (if player stress high)
+        if (profile.tacticalDepth > RandomProvider.Current.Value * 0.5f &&
             TryStressAttack(unit, players, profile, out target, out skill))
             return;
 
-        // Priority 5a: Aggressor - target marked/bleeding targets
+        // Priority 6a: Aggressor - target marked/bleeding targets
         if (role == AIRole.Aggressor && TryAttackMarked(unit, players, out target, out skill))
             return;
 
-        // Priority 5b: Debuff / mark
+        // Priority 6b: Debuff / mark
         if (profile.tacticalDepth > 0.4f &&
             TryDebuff(unit, players, out target, out skill))
             return;
 
-        // Priority 6: Buff self / allies
+        // Priority 6c: Threat focus - target highest threat
+        if (profile.threatFocus > RandomProvider.Current.Value &&
+            TryFocusThreat(unit, players, profile, bm, out target, out skill))
+            return;
+
+        // Priority 7: Buff self / allies
         if (role != AIRole.Aggressor && profile.tacticalDepth > 0.3f &&
             TryBuff(unit, allies, out target, out skill))
             return;
 
-        // Priority 7: AOE (if multiple targets)
-        if (profile.aoePreference > Random.value * 0.5f &&
+        // Priority 8: AOE (if multiple targets)
+        if (profile.aoePreference > RandomProvider.Current.Value * 0.5f &&
             TryAoE(unit, players, bm, out target, out skill))
             return;
 
-        // Priority 8: Single target damage
+        // Priority 9: Single target damage (with position awareness)
         TryDamage(unit, players, profile, role, bm, out target, out skill);
     }
 
@@ -339,7 +384,7 @@ public static class EnemyAIEngine
             if (unstunned.Count > 0)
             {
                 skill = stunSkill;
-                target = unstunned[Random.Range(0, unstunned.Count)];
+                target = unstunned[RandomProvider.Current.Range(0, unstunned.Count)];
                 BattleLog.Add($"[AI眩晕] {unit.unitName} 试图眩晕 {target.unitName}");
                 return true;
             }
@@ -370,7 +415,7 @@ public static class EnemyAIEngine
         if (protectSkill != null && allies.Count > 0)
         {
             skill = protectSkill;
-            target = allies[Random.Range(0, allies.Count)];
+            target = allies[RandomProvider.Current.Range(0, allies.Count)];
             BattleLog.Add($"[AI保护] {unit.unitName} 保护 {target.unitName}");
             return true;
         }
@@ -402,7 +447,7 @@ public static class EnemyAIEngine
         target = null;
         skill = null;
 
-        if (Random.value < profile.skillUseChance)
+        if (RandomProvider.Current.Value < profile.skillUseChance)
         {
             skill = GetBestDamageSkill(unit, profile);
         }
@@ -416,7 +461,7 @@ public static class EnemyAIEngine
                 s.aiCategory == SkillEffectType.DirectDamage &&
                 SkillUsable(unit, s) && !IsSkillOnCooldown(unit, s));
             if (usableSkills.Count > 0)
-                skill = usableSkills[Random.Range(0, usableSkills.Count)];
+                skill = usableSkills[RandomProvider.Current.Range(0, usableSkills.Count)];
         }
 
         if (skill != null)
@@ -441,51 +486,234 @@ public static class EnemyAIEngine
                         s.aiCategory == SkillEffectType.AoEDamage ||
                         s.aiCategory == SkillEffectType.Bleed ||
                         s.aiCategory == SkillEffectType.Stun))
-            .OrderByDescending(s => s.baseDamage)
             .ToList();
 
         if (damageSkills.Count == 0) return null;
 
-        if (profile.tacticalDepth > 0.6f && damageSkills.Count > 1)
+        // Score-based selection
+        float bestScore = float.MinValue;
+        SkillData bestSkill = null;
+
+        foreach (var s in damageSkills)
         {
-            return damageSkills[0];
+            float score = CalculateSkillScore(unit, s, profile);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestSkill = s;
+            }
         }
 
-        return damageSkills[Random.Range(0, damageSkills.Count)];
+        return bestSkill ?? damageSkills[0];
+    }
+
+    static float CalculateSkillScore(UnitData unit, SkillData skill, AIDifficultyProfile profile)
+    {
+        float score = skill.baseDamage;
+
+        // AoE bonus per extra target
+        if (skill.aiCategory == SkillEffectType.AoEDamage)
+            score *= 1.5f;
+
+        // Bleed bonus (damage over time)
+        if (skill.aiCategory == SkillEffectType.Bleed)
+            score += skill.effectValue * (skill.effectDuration > 0 ? skill.effectDuration : 2) * 0.5f;
+
+        // Stun utility bonus
+        if (skill.aiCategory == SkillEffectType.Stun)
+            score += 10f;
+
+        // Cooldown penalty (prefer skills available sooner next time)
+        if (skill.cooldown > 0 && unit.skillCooldowns != null &&
+            unit.skillCooldowns.ContainsKey(skill.skillName) &&
+            unit.skillCooldowns[skill.skillName] > 0)
+            score -= 30f;
+
+        // Variety bonus (prefer skills used less)
+        if (skillUseCount.ContainsKey(unit) && skillUseCount[unit].ContainsKey(skill.skillName))
+            score -= skillUseCount[unit][skill.skillName] * 5f;
+
+        // Tactical depth: high depth = more deterministic (prefer highest raw), low = more random
+        if (profile.tacticalDepth < 0.5f)
+            score += RandomProvider.Current.Range(0f, 15f);
+
+        return score;
+    }
+
+    static void TrackLastSkill(UnitData unit, SkillData skill)
+    {
+        if (skill != null)
+            lastSkillUsed[unit] = skill.skillName;
+        else
+            ClearLastSkill(unit);
+    }
+
+    static void ClearLastSkill(UnitData unit)
+    {
+        if (lastSkillUsed.ContainsKey(unit))
+            lastSkillUsed.Remove(unit);
+    }
+
+    static bool WasLastSkill(UnitData unit, SkillEffectType category)
+    {
+        if (!lastSkillUsed.ContainsKey(unit)) return false;
+        string last = lastSkillUsed[unit];
+        var lastSkill = unit.skills.Find(s => s.skillName == last);
+        return lastSkill != null && lastSkill.aiCategory == category;
+    }
+
+    static bool TryComboFollowUp(UnitData unit, List<UnitData> players, AIDifficultyProfile profile,
+        out UnitData target, out SkillData skill)
+    {
+        target = null;
+        skill = null;
+
+        if (!lastSkillUsed.ContainsKey(unit)) return false;
+
+        var lastSkill = unit.skills.Find(s => s.skillName == lastSkillUsed[unit]);
+        if (lastSkill == null) return false;
+
+        // Combo: Mark → direct damage on marked target
+        if (lastSkill.aiCategory == SkillEffectType.Mark || lastSkill.aiCategory == SkillEffectType.Stun)
+        {
+            var markedTarget = players.FirstOrDefault(p =>
+                p.HasStatus(StatusType.Mark) || p.HasStatus(StatusType.Stun));
+            if (markedTarget != null)
+            {
+                skill = GetBestDamageSkill(unit, profile);
+                if (skill != null)
+                {
+                    target = markedTarget;
+                    BattleLog.Add($"[AI连招] {unit.unitName} 追击 {target.unitName} (连招衔接)");
+                    return true;
+                }
+            }
+        }
+
+        // Combo: BerserkBuff → strongest attack on most threatening target
+        if (lastSkill.aiCategory == SkillEffectType.BerserkBuff)
+        {
+            var highThreat = players
+                .OrderByDescending(p => GetThreatScore(p))
+                .FirstOrDefault();
+            if (highThreat != null)
+            {
+                skill = GetBestDamageSkill(unit, profile);
+                target = highThreat;
+                BattleLog.Add($"[AI连招] {unit.unitName} 狂暴后猛攻 {target.unitName}");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static bool TryFocusThreat(UnitData unit, List<UnitData> players, AIDifficultyProfile profile,
+        BattleManager bm, out UnitData target, out SkillData skill)
+    {
+        target = null;
+        skill = null;
+
+        if (playerThreatScores == null || playerThreatScores.Count == 0)
+            InitializeThreats(bm);
+
+        var sorted = players
+            .OrderByDescending(p => GetThreatScore(p))
+            .ToList();
+
+        if (sorted.Count == 0) return false;
+
+        target = sorted[0];
+        skill = GetBestDamageSkill(unit, profile);
+        if (skill != null)
+            BattleLog.Add($"[AI威胁] {unit.unitName} 集中攻击高威胁目标 {target.unitName}");
+        return true;
+    }
+
+    static float GetThreatScore(UnitData player)
+    {
+        if (player == null || player.currentHP <= 0) return 0f;
+        if (playerThreatScores.ContainsKey(player.unitName))
+            return playerThreatScores[player.unitName];
+        return 1f;
     }
 
     static UnitData SelectBestTarget(UnitData unit, BattleManager bm, AIDifficultyProfile profile)
     {
         if (profile == null) profile = AIDifficultyProfile.GetDefault(AIDifficulty.Normal);
 
-        var bmInstance = bm ?? GameObject.FindObjectOfType<BattleManager>();
-        if (bmInstance == null) return null;
+        // bm 由调用方（ExecuteTurn 等）保证非 null；之前 `bm ?? FindObjectOfType<BattleManager>()`
+        // 是一道防御性兜底，但它会把 EnemyAIEngine 与 BattleManager 类硬绑定。
+        // 现在 AI 完全走 BattleManager 引用：调用链是 TurnManager.EnemyTurn() →
+        // EnemyAIEngine.ExecuteTurn(unit, bm, ...)，bm 在 TurnManager 那一侧就已经从
+        // Context.RawContext（逃生通道）拿到，不可能为 null。直接断言即可。
+        if (bm == null)
+        {
+            Log.Error("[EnemyAIEngine] SelectBestTarget: bm 为 null，调用方必须传入 BattleManager");
+            return null;
+        }
 
-        var players = bmInstance.playerUnits.Where(u => u.currentHP > 0).ToList();
+        var players = bm.playerUnits.Where(u => u.currentHP > 0).ToList();
         if (players.Count == 0) return null;
 
-        if (profile.deathDoorFocus > Random.value)
+        // Death's door priority (always highest)
+        if (profile.deathDoorFocus > RandomProvider.Current.Value)
         {
             var dd = players.Where(p => p.isOnDeathsDoor).ToList();
             if (dd.Count > 0) return dd[0];
         }
 
+        // Low HP cleanup
         var lowHp = players.Where(p => (float)p.currentHP / p.MaxHp < 0.25f)
                            .OrderBy(p => p.currentHP).ToList();
-        if (lowHp.Count > 0 && Random.value > profile.targetVariance)
+        if (lowHp.Count > 0 && RandomProvider.Current.Value > profile.targetVariance)
             return lowHp[0];
 
-        var front = players.Where(p => p.rank <= 1).ToList();
-        if (front.Count > 0) return front[Random.Range(0, front.Count)];
+        // Position-aware + threat-weighted scoring
+        bool isBackline = unit.rank >= 2;
+        float bestScore = float.MinValue;
+        UnitData bestTarget = null;
 
-        return players[Random.Range(0, players.Count)];
+        foreach (var p in players)
+        {
+            float score = 0;
+
+            // Position preference: backline targets backline, frontline targets frontline
+            if (isBackline)
+                score += p.rank >= 2 ? 15f * profile.positionalAwareness : 0f;
+            else
+                score += p.rank <= 1 ? 10f * profile.positionalAwareness : 0f;
+
+            // Threat score
+            score += GetThreatScore(p) * 0.5f * profile.threatFocus;
+
+            // Low HP bonus (finishing bonus)
+            float hpRatio = (float)p.currentHP / p.MaxHp;
+            score += (1f - hpRatio) * 20f;
+
+            // Marked/bleeding bonus
+            if (p.HasStatus(StatusType.Mark)) score += 15f;
+            if (p.HasStatus(StatusType.Bleed)) score += 10f;
+            if (p.HasStatus(StatusType.Stun)) score += 12f;
+
+            // Random variance
+            score += RandomProvider.Current.Range(0f, 10f * profile.targetVariance);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTarget = p;
+            }
+        }
+
+        return bestTarget ?? players[RandomProvider.Current.Range(0, players.Count)];
     }
 
     static UnitData SelectStrategicTarget(List<UnitData> candidates)
     {
         var backline = candidates.Where(c => c.rank >= 2).ToList();
-        if (backline.Count > 0) return backline[Random.Range(0, backline.Count)];
-        return candidates[Random.Range(0, candidates.Count)];
+        if (backline.Count > 0) return backline[RandomProvider.Current.Range(0, backline.Count)];
+        return candidates[RandomProvider.Current.Range(0, candidates.Count)];
     }
 
     static UnitData SelectRandomTarget(UnitData unit, BattleManager bm, bool includeAlly)
@@ -494,7 +722,7 @@ public static class EnemyAIEngine
         allTargets.AddRange(bm.playerUnits.Where(u => u.currentHP > 0));
         if (includeAlly)
             allTargets.AddRange(bm.enemyUnits.Where(u => u.currentHP > 0 && u != unit));
-        return allTargets.Count > 0 ? allTargets[Random.Range(0, allTargets.Count)] : null;
+        return allTargets.Count > 0 ? allTargets[RandomProvider.Current.Range(0, allTargets.Count)] : null;
     }
 
     static bool SkillUsable(UnitData unit, SkillData skill)
@@ -534,6 +762,13 @@ public static class EnemyAIEngine
         }
         else
         {
+            // Track usage count for variety scoring
+            if (!skillUseCount.ContainsKey(unit))
+                skillUseCount[unit] = new Dictionary<string, int>();
+            if (!skillUseCount[unit].ContainsKey(skill.skillName))
+                skillUseCount[unit][skill.skillName] = 0;
+            skillUseCount[unit][skill.skillName]++;
+
             if (skill.cooldown > 0)
             {
                 if (unit.skillCooldowns == null)

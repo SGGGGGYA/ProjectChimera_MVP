@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using ProjectChimera.Core;
 
 public enum WorldTileType
 {
@@ -74,7 +75,7 @@ public class GridManager : MonoBehaviour
     void Start()
     {
         if (AudioManager.Instance != null)
-            AudioManager.Instance.PlayBGM(AudioKeys.BGM_MAP);
+            AudioManager.Instance.PlayBGM(AudioKeys.BGM_MENU);
 
         GenerateTileTypes();
         GenerateGrid();
@@ -109,7 +110,7 @@ public class GridManager : MonoBehaviour
                     continue;
                 }
 
-                float roll = Random.value;
+                float roll = RandomProvider.Current.Value;
                 float acc = 0f;
                 acc += battleChance;
                 if (roll < acc) { tileTypes[x, y] = WorldTileType.Battle; continue; }
@@ -245,7 +246,7 @@ public class GridManager : MonoBehaviour
                 StartBattle(0);
                 break;
             case WorldTileType.Elite:
-                int eliteId = Random.Range(10, 16);
+                int eliteId = RandomProvider.Current.Range(10, 16);
                 StartBattle(eliteId);
                 break;
             case WorldTileType.Treasure:
@@ -313,23 +314,23 @@ public class GridManager : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        float roll = Random.value;
+        float roll = RandomProvider.Current.Value;
         if (roll < 0.30f)
         {
-            int stressUp = Random.Range(5, 15);
+            int stressUp = RandomProvider.Current.Range(5, 15);
             foreach (var u in gm.playerTeamData)
                 u.stress = Mathf.Min(u.stress + stressUp, 200);
             ShowFloatingText($"<color=#ff6666>遭遇险境！</color>\n全队压力 +{stressUp}", new Color(0.8f, 0.3f, 0.3f), 2.5f);
         }
         else if (roll < 0.55f)
         {
-            int goldFound = Random.Range(10, 30);
+            int goldFound = RandomProvider.Current.Range(10, 30);
             gm.gold += goldFound;
             ShowFloatingText($"<color=yellow>发现遗物！</color>\n金币 +{goldFound}", Color.yellow, 2.5f);
         }
         else if (roll < 0.75f)
         {
-            int heal = Random.Range(10, 25);
+            int heal = RandomProvider.Current.Range(10, 25);
             var target = gm.playerTeamData.Find(u => u.currentHP < u.maxHp);
             if (target != null)
             {
@@ -341,7 +342,7 @@ public class GridManager : MonoBehaviour
         }
         else
         {
-            int stressDown = Random.Range(5, 15);
+            int stressDown = RandomProvider.Current.Range(5, 15);
             foreach (var u in gm.playerTeamData)
                 u.stress = Mathf.Max(u.stress - stressDown, 0);
             ShowFloatingText($"<color=#66ccff>心情愉悦！</color>\n全队压力 -{stressDown}", new Color(0.3f, 0.6f, 0.9f), 2.5f);

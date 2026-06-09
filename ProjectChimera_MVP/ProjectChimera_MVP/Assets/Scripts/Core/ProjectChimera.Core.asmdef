@@ -1,0 +1,16 @@
+{
+    "name": "ProjectChimera.Core",
+    "rootNamespace": "ProjectChimera",
+    "references": [
+        "spine-unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

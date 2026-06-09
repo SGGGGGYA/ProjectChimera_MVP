@@ -66,6 +66,9 @@ public class SkillData
     public float strScaling;
     public float agiScaling;
 
+    [Header("Spine 动画名 (可选, 默认 atk)")]
+    public string animationName;
+
     [Header("AI辅助标记（可选）")]
     public SkillEffectType aiCategory;
     public float effectValue;

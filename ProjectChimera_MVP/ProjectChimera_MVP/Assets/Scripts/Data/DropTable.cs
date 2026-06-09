@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ProjectChimera.Core;
 
 [System.Serializable]
 public class DropEntry
@@ -73,8 +74,8 @@ public static class DropTable
     {
         Initialize();
         if (_goldRanges.TryGetValue(unitName, out var range))
-            return Random.Range(range.x, range.y + 1);
-        return Random.Range(2, 6);
+            return RandomProvider.Current.Range(range.x, range.y + 1);
+        return RandomProvider.Current.Range(2, 6);
     }
 
     public static List<ItemStack> RollDrops(string unitName)
@@ -86,9 +87,9 @@ public static class DropTable
         var result = new List<ItemStack>();
         foreach (var entry in table)
         {
-            if (Random.value < entry.chance)
+            if (RandomProvider.Current.Value < entry.chance)
             {
-                int qty = Random.Range(entry.minQuantity, entry.maxQuantity + 1);
+                int qty = RandomProvider.Current.Range(entry.minQuantity, entry.maxQuantity + 1);
                 if (qty > 0)
                     result.Add(new ItemStack(entry.itemId, qty));
             }

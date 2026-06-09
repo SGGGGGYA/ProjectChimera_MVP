@@ -1287,7 +1287,7 @@ public class BattleManager : MonoBehaviour, IBattleContext
 
     IReadOnlyList<UnitData> IBattleContext.PlayerUnits => playerUnits;
     IReadOnlyList<UnitData> IBattleContext.EnemyUnits => enemyUnits;
-    BattleManager IBattleContext.RawBattleManager => this;
+    object IBattleContext.RawContext => this;
 
     // ==================== 受击动画 ====================
 

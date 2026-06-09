@@ -4,12 +4,15 @@ public enum QuirkTriggerType
 {
     BattleStart,
     TurnStart,
+    TurnEnd,
     OnHit,
+    OnCrit,
     OnTakeDamage,
     OnKill,
     OnStress,
     OnHeal,
-    OnDeathsDoor
+    OnDeathsDoor,
+    OnDodge
 }
 
 [System.Serializable]
