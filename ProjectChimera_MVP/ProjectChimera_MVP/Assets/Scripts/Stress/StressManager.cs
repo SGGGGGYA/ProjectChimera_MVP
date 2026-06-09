@@ -265,8 +265,8 @@ public static class StressManager
         if (entry.randomAttack && context != null)
         {
             var allAlive = new List<UnitData>();
-            allAlive.AddRange(context.PlayerUnits.FindAll(u => u.currentHP > 0 && u != unit));
-            allAlive.AddRange(context.EnemyUnits.FindAll(u => u.currentHP > 0 && u != unit));
+            allAlive.AddRange(context.PlayerUnits.Where(u => u.currentHP > 0 && u != unit));
+            allAlive.AddRange(context.EnemyUnits.Where(u => u.currentHP > 0 && u != unit));
             if (allAlive.Count > 0)
             {
                 UnitData target = allAlive[RandomProvider.Current.Range(0, allAlive.Count)];

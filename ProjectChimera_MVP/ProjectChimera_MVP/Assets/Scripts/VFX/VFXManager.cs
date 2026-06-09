@@ -149,18 +149,18 @@ public static class VFXManager
         var sk = target.GetSkeleton();
         if (sk == null || sk.skeleton == null) yield break;
 
-        float origR = sk.skeleton.r, origG = sk.skeleton.g, origB = sk.skeleton.b, origA = sk.skeleton.a;
-        sk.skeleton.r = flashColor.r;
-        sk.skeleton.g = flashColor.g;
-        sk.skeleton.b = flashColor.b;
-        sk.skeleton.a = flashColor.a;
+        float origR = sk.skeleton.R, origG = sk.skeleton.G, origB = sk.skeleton.B, origA = sk.skeleton.A;
+        sk.skeleton.R = flashColor.r;
+        sk.skeleton.G = flashColor.g;
+        sk.skeleton.B = flashColor.b;
+        sk.skeleton.A = flashColor.a;
         yield return new WaitForSeconds(duration);
         if (sk != null && sk.skeleton != null)
         {
-            sk.skeleton.r = origR;
-            sk.skeleton.g = origG;
-            sk.skeleton.b = origB;
-            sk.skeleton.a = origA;
+            sk.skeleton.R = origR;
+            sk.skeleton.G = origG;
+            sk.skeleton.B = origB;
+            sk.skeleton.A = origA;
         }
     }
 

@@ -392,7 +392,7 @@ public class UnitData : MonoBehaviour
         var anim = sk.skeleton.Data.FindAnimation(name);
         if (anim == null) { Log.Warn($"[动画] {unitName} 找不到动画 {name}"); return; }
 
-        Log.Info($"[动画] {unitName} Play({name}) track={track} loop={loop} duration={anim.duration}s");
+        Log.Info($"[动画] {unitName} Play({name}) track={track} loop={loop} duration={anim.Duration}s");
         var entry = sk.AnimationState.SetAnimation(track, name, loop);
 
         if (entry != null && !loop)
@@ -586,7 +586,7 @@ public class UnitData : MonoBehaviour
         if (skeleton != null && skeleton.skeleton != null)
         {
             float alpha = (state == HighlightState.Dimmed) ? 0.35f : 1f;
-            skeleton.skeleton.a = alpha;
+            skeleton.skeleton.A = alpha;
         }
     }
 

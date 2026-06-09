@@ -4,7 +4,7 @@ using UnityEngine;
 public static class CommandExecutor
 {
     public static void Execute(UnitData attacker, SkillData skill, UnitData target,
-                                BattleManager battleManager, List<UnitData> allPlayers, List<UnitData> allEnemies)
+                                IBattleContext battleContext, List<UnitData> allPlayers, List<UnitData> allEnemies)
     {
         if (attacker == null || skill == null || skill.commands == null || skill.commands.Count == 0)
             return;
@@ -13,7 +13,7 @@ public static class CommandExecutor
         {
             attacker = attacker,
             selectedTarget = target,
-            battleManager = battleManager,
+            battleContext = battleContext,
             allPlayers = allPlayers,
             allEnemies = allEnemies
         };

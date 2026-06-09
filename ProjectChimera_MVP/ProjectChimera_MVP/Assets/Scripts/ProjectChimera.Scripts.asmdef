@@ -2,12 +2,7 @@
     "name": "ProjectChimera.Scripts",
     "rootNamespace": "ProjectChimera",
     "references": [
-        "ProjectChimera.Core",
-        "ProjectChimera.Data",
-        "ProjectChimera.AI",
-        "ProjectChimera.Battle",
-        "ProjectChimera.Stress",
-        "ProjectChimera.UI",
+        "spine-csharp",
         "spine-unity",
         "Unity.TextMeshPro",
         "UnityEngine.UI"

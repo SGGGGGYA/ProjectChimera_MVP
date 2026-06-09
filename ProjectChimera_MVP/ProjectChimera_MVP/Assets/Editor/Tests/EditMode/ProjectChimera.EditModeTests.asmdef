@@ -3,12 +3,6 @@
     "rootNamespace": "ProjectChimera.Tests",
     "references": [
         "ProjectChimera.Scripts",
-        "ProjectChimera.Core",
-        "ProjectChimera.Data",
-        "ProjectChimera.AI",
-        "ProjectChimera.Stress",
-        "ProjectChimera.Battle",
-        "ProjectChimera.UI",
         "spine-csharp",
         "spine-unity",
         "Unity.TextMeshPro",

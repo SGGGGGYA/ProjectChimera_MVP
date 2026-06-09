@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using ProjectChimera.Core;
+using UnityEngine;
 
 namespace ProjectChimera.Tests.EditMode
 {

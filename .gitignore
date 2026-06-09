@@ -23,5 +23,6 @@ Thumbs.db
 # Project specific
 .cache/
 .reasonix/
+.trae/
 battle_log.txt
 save_data.json

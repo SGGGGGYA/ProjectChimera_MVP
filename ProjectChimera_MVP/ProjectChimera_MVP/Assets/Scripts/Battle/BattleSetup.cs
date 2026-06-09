@@ -384,13 +384,13 @@ public class BattleSetup : MonoBehaviour
                 {
                     if (data.isPlayer)
                     {
-                        skeleton.skeleton.r = 1f; skeleton.skeleton.g = 1f;
-                        skeleton.skeleton.b = 1f; skeleton.skeleton.a = 1f;
+                        skeleton.skeleton.R = 1f; skeleton.skeleton.G = 1f;
+                        skeleton.skeleton.B = 1f; skeleton.skeleton.A = 1f;
                     }
                     else
                     {
-                        skeleton.skeleton.r = 1f; skeleton.skeleton.g = 0.6f;
-                        skeleton.skeleton.b = 0.6f; skeleton.skeleton.a = 1f;
+                        skeleton.skeleton.R = 1f; skeleton.skeleton.G = 0.6f;
+                        skeleton.skeleton.B = 0.6f; skeleton.skeleton.A = 1f;
                     }
                 }
                 catch { /* 调色失败不影响运行 */ }

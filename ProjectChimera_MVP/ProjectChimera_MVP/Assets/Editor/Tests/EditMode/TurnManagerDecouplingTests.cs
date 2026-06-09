@@ -205,6 +205,8 @@ public class TurnManagerDecouplingTests
         public void SpawnDamagePopup(Vector3 worldPos, int amount, PopupType type) { }
         public void SpawnTextPopup(Vector3 worldPos, string text, Color color, float fontSize = 4f) { }
         public void DealDamage(UnitData attacker, UnitData target, int damage, bool isCrit = false) { }
+        public bool IsInTargetingMode() => false;
+        public bool IsValidTarget(UnitData unit) => false;
         public object RawContext => null;
     }
 }
