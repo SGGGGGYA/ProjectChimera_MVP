@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// - 红血（trailImage）：缓慢追赶绿血，制造受伤尾迹效果
 /// - 自动跟随挂载在角色头顶
 /// </summary>
-public class HPBarFollower : MonoBehaviour
+public class HPBarFollower : MonoBehaviour, IUnitHPBar
 {
     [Header("UI 引用 — 在编辑器中拖拽绑定")]
     public Image fillImage;       // 绿色 Fill（当前血量，瞬间变化）

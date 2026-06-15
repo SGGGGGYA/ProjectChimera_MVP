@@ -1,0 +1,9 @@
+{
+	"nodes":[
+		{"id":"5ff207346ba80f19","x":-220,"y":-20,"width":400,"height":400,"type":"file","file":"未命名 1.canvas"},
+		{"id":"5a4b5275e680e6d5","x":-240,"y":420,"width":400,"height":400,"type":"file","file":"项目概览/Project Chimera 项目概览.md"}
+	],
+	"edges":[
+		{"id":"c4ce90fbbeda6263","fromNode":"5a4b5275e680e6d5","fromSide":"top","toNode":"5ff207346ba80f19","toSide":"bottom"}
+	]
+}

@@ -49,7 +49,7 @@ public class UIRoundCounter : MonoBehaviour
         label.color = Color.white;
         UIFonts.Apply(label);
 
-        lastRound = -1;
+        lastRound = 1;
         Refresh();
     }
 

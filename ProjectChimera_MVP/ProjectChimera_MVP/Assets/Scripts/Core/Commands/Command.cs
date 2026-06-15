@@ -33,6 +33,7 @@ public class CommandResult
 [System.Serializable]
 public abstract class Command
 {
+    // ==================== P1 防御：所有 Execute 方法入口均包含 ctx / attacker / target null 检查 ====================
     public abstract CommandResult Execute(CommandContext ctx);
 }
 
@@ -47,10 +48,11 @@ public class DealDamageCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null || ctx.allEnemies == null) return result;
 
         if (isAoE)
         {
-            var aliveEnemies = ctx.allEnemies.FindAll(e => e.currentHP > 0);
+            var aliveEnemies = ctx.allEnemies.FindAll(e => e != null && e.currentHP > 0);
             foreach (var enemy in aliveEnemies)
             {
                 bool hit = CombatSystem.IsHit(ctx.attacker, enemy);
@@ -126,13 +128,14 @@ public class ApplyStatusCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.allPlayers == null || ctx.allEnemies == null) return result;
 
         if (applyToAllAllies)
         {
             var allies = ctx.attacker.isPlayer ? ctx.allPlayers : ctx.allEnemies;
             foreach (var ally in allies)
             {
-                if (ally.currentHP > 0)
+                if (ally != null && ally.currentHP > 0)
                     ally.AddStatus(new StatusEffect(statusType, ctx.attacker.unitName, duration, effectValue));
             }
         }
@@ -141,7 +144,7 @@ public class ApplyStatusCommand : Command
             var enemies = ctx.attacker.isPlayer ? ctx.allEnemies : ctx.allPlayers;
             foreach (var enemy in enemies)
             {
-                if (enemy.currentHP > 0)
+                if (enemy != null && enemy.currentHP > 0)
                     enemy.AddStatus(new StatusEffect(statusType, ctx.attacker.unitName, duration, effectValue));
             }
         }
@@ -168,17 +171,20 @@ public class RemoveStatusCommand : Command
 
     public override CommandResult Execute(CommandContext ctx)
     {
+        if (ctx == null || ctx.attacker == null || ctx.allPlayers == null || ctx.allEnemies == null)
+            return new CommandResult();
+
         if (removeFromAllAllies)
         {
             var allies = ctx.attacker.isPlayer ? ctx.allPlayers : ctx.allEnemies;
             foreach (var ally in allies)
-                ally.RemoveStatus(statusType);
+                if (ally != null) ally.RemoveStatus(statusType);
         }
         else if (removeFromAllEnemies)
         {
             var enemies = ctx.attacker.isPlayer ? ctx.allEnemies : ctx.allPlayers;
             foreach (var enemy in enemies)
-                enemy.RemoveStatus(statusType);
+                if (enemy != null) enemy.RemoveStatus(statusType);
         }
         else
         {
@@ -199,6 +205,7 @@ public class HealCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
 
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
@@ -230,6 +237,7 @@ public class ShieldCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
 
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
@@ -258,6 +266,7 @@ public class ConsumeResourceCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
 
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
@@ -293,6 +302,7 @@ public class ModifyAttributeCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
 
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
@@ -328,6 +338,7 @@ public class BloodthirstyStrikeCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
             result.skipRemainingCommands = true;
@@ -376,6 +387,7 @@ public class DesperateStrikeCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
             result.skipRemainingCommands = true;
@@ -412,6 +424,7 @@ public class MindShockCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
         if (ctx.selectedTarget == null || ctx.selectedTarget.currentHP <= 0)
         {
             result.skipRemainingCommands = true;
@@ -456,7 +469,7 @@ public class SelfInflictCommand : Command
     public override CommandResult Execute(CommandContext ctx)
     {
         var result = new CommandResult();
-        if (ctx.attacker == null) return result;
+        if (ctx == null || ctx.attacker == null || ctx.battleContext == null) return result;
 
         if (inflictType == SelfInflictType.HP)
         {

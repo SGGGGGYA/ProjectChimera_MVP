@@ -313,10 +313,13 @@ public class UnitData : MonoBehaviour
     [Header("血条引用")]
     public SpriteRenderer hpBarFill;
     public SpriteRenderer hpBarBg;
-    public HPBarFollower hpBarFollower;
+    // 字段类型故意写成 Component(非 HPBarFollower):Core 不能引用 UI 程序集,
+    // 但 Inspector 仍能拖拽任何组件。UpdateHPUI 内部用 IUnitHPBar 接口转型后调用。
+    public Component hpBarFollower;
 
     [Header("压力条引用")]
-    public StressBarFollower stressBarFollower;
+    // 同上:Core 持有 Component 引用,UpdateHPUI 用 IUnitStressBar 转型。
+    public Component stressBarFollower;
 
     [Header("选中光圈")]
     public GameObject selectCircle;
@@ -338,9 +341,53 @@ public class UnitData : MonoBehaviour
 
     public bool isDead => currentHP <= 0;
 
+    /// <summary>死亡状态标记：防止 Die() 重复调用导致多次播放死亡动画</summary>
+    private bool deathAnimPlayed;
+
+    /// <summary>
+    /// 执行死亡逻辑：播放死亡动画并标记单位已死。
+    /// 防重入：若已调用过 Die() 或单位已死亡，静默跳过。
+    /// </summary>
+    public void Die()
+    {
+        // 防重复调用：已播过死亡动画或单位已死则跳过
+        if (deathAnimPlayed || currentHP <= 0)
+        {
+            deathAnimPlayed = true;
+            return;
+        }
+
+        deathAnimPlayed = true;
+        Log.Info($"[动画] {unitName} Die() 被调用");
+
+        var sk = GetSkeleton();
+        if (sk == null || sk.AnimationState == null)
+        {
+            // 无骨骼时至少更新 HP 到 0
+            currentHP = 0;
+            UpdateHPUI();
+            return;
+        }
+
+        // 播放死亡动画
+        sk.AnimationState.SetAnimation(0, deathAnimName, false);
+        currentHP = 0;
+        UpdateHPUI();
+    }
+
+    /// <summary>
+    /// 播放 Idle 动画（便利方法）。
+    /// skeleton 为空或动画不存在时静默跳过。
+    /// </summary>
+    public void SetIdle()
+    {
+        Play(idleAnimName, loop: true);
+    }
+
     /// <summary>从死亡/濒死状态恢复（死亡之门存活、战后复活等）— 立刻中断死亡动画并播 Idle</summary>
     public void Revive()
     {
+        deathAnimPlayed = false; // 重置死亡标记，允许再次触发 Die()
         Log.Info($"[动画] {unitName} Revive() 被调用，currentHP={currentHP}");
         // bump guard 让所有在飞的 Complete 回调失效
         int guard = ++idleGuard;
@@ -380,13 +427,23 @@ public class UnitData : MonoBehaviour
     public SkeletonAnimation GetSkeleton()
     {
         if (cachedSkeleton == null)
-            cachedSkeleton = GetComponentInChildren<SkeletonAnimation>(true);
+        {
+            try
+            {
+                cachedSkeleton = GetComponentInChildren<SkeletonAnimation>(true);
+            }
+            catch
+            {
+                cachedSkeleton = null; // 获取失败时返回 null，不抛异常
+            }
+        }
         return cachedSkeleton;
     }
 
     /// <summary>在指定轨道上播放动画。loop=false 时播完会自动回到 Idle（已死亡则不回）。</summary>
     public void Play(string name, bool loop = false, int track = 0)
     {
+        if (string.IsNullOrEmpty(name)) return; // 动画名为空时静默跳过
         var sk = GetSkeleton();
         if (sk == null || sk.AnimationState == null) return;
         var anim = sk.skeleton.Data.FindAnimation(name);
@@ -462,13 +519,14 @@ public class UnitData : MonoBehaviour
 
     public void UpdateHPUI()
     {
-        if (hpBarFollower != null)
+        // 转型到 Core 内的 IUnitHPBar 接口调用,避免编译期依赖 UI.HPBarFollower。
+        if (hpBarFollower is IUnitHPBar bar)
         {
-            hpBarFollower.UpdateHP(currentHP, MaxHp);
+            bar.UpdateHP(currentHP, MaxHp);
             if (isOnDeathsDoor && currentHP <= 0)
-                hpBarFollower.SetDeathsDoor(true);
+                bar.SetDeathsDoor(true);
             else
-                hpBarFollower.SetDeathsDoor(false);
+                bar.SetDeathsDoor(false);
             return;
         }
 

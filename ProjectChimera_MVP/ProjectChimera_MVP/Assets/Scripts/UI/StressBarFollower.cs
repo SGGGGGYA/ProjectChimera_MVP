@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class StressBarFollower : MonoBehaviour
+public class StressBarFollower : MonoBehaviour, IUnitStressBar
 {
     public Image fillImage;
     public TextMeshProUGUI stressText;

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -15,6 +16,11 @@ public class UICampController : MonoBehaviour
     TextMeshProUGUI btnTmp;
     List<UnitBattleData> playerData;
 
+    /// <summary>篝火背景 Image 引用，用于闪烁动画</summary>
+    Image campfireBgImage;
+    /// <summary>篝火闪烁动画协程</summary>
+    Coroutine campfireFlickerRoutine;
+
     const int CAMP_COST = 25;
     const int HP_RESTORE_PCT = 50;
     const int STRESS_REDUCE = 30;
@@ -22,6 +28,12 @@ public class UICampController : MonoBehaviour
     void Awake()
     {
         if (Instance == null) Instance = this;
+    }
+
+    void OnDestroy()
+    {
+        StopCampfireFlicker();
+        if (Instance == this) Instance = null;
     }
 
     void Start()
@@ -69,6 +81,28 @@ public class UICampController : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = Vector2.zero;
 
+        // 营地背景图 campfire.png
+        var campBg = new GameObject("CampBg", typeof(RectTransform));
+        campBg.layer = 5;
+        campBg.transform.SetParent(root.transform, false);
+        var campRt = campBg.GetComponent<RectTransform>();
+        campRt.anchorMin = Vector2.zero; campRt.anchorMax = Vector2.one;
+        campRt.offsetMin = Vector2.zero; campRt.offsetMax = Vector2.zero;
+        campfireBgImage = campBg.AddComponent<Image>();
+        var campfireSprite = Resources.Load<Sprite>("Backgrounds/Camp/campfire");
+        if (campfireSprite != null)
+        {
+            campfireBgImage.sprite = campfireSprite;
+            campfireBgImage.color = new Color(0.8f, 0.8f, 0.8f, 0.9f);
+            campfireBgImage.type = Image.Type.Simple;
+        }
+        else
+        {
+            campfireBgImage.color = new Color(0.08f, 0.06f, 0.04f, 0.95f);
+            Debug.LogWarning("[UICamp] 找不到 campfire.png，使用纯色背景回退");
+        }
+
+        // 半透明遮罩层，确保UI可读
         var bg = new GameObject("BG", typeof(RectTransform));
         bg.layer = 5;
         bg.transform.SetParent(root.transform, false);
@@ -76,7 +110,7 @@ public class UICampController : MonoBehaviour
         bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
         var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+        bgImg.color = new Color(0.05f, 0.05f, 0.08f, 0.6f);
 
         var titleGo = new GameObject("Title", typeof(RectTransform));
         titleGo.layer = 5;
@@ -198,13 +232,84 @@ public class UICampController : MonoBehaviour
         playerData = gm.playerTeamData;
         Refresh();
         panel.SetActive(true);
+        StartCampfireFlicker();
         AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
     }
 
     public void Close()
     {
+        StopCampfireFlicker();
         if (panel != null) panel.SetActive(false);
         AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_CLOSE);
+    }
+
+    /// <summary>
+    /// 启动篝火闪烁动画：模拟火光摇曳效果
+    /// </summary>
+    void StartCampfireFlicker()
+    {
+        StopCampfireFlicker();
+        if (campfireBgImage != null && campfireBgImage.sprite != null)
+        {
+            campfireFlickerRoutine = StartCoroutine(CampfireFlickerRoutine());
+        }
+    }
+
+    /// <summary>
+    /// 停止篝火闪烁动画
+    /// </summary>
+    void StopCampfireFlicker()
+    {
+        if (campfireFlickerRoutine != null)
+        {
+            StopCoroutine(campfireFlickerRoutine);
+            campfireFlickerRoutine = null;
+        }
+    }
+
+    /// <summary>
+    /// 篝火闪烁协程：随机微调亮度和饱和度，模拟火光摇曳
+    /// </summary>
+    IEnumerator CampfireFlickerRoutine()
+    {
+        float baseBrightness = 0.8f;
+        float baseSaturation = 0.8f;
+        float currentBrightness = baseBrightness;
+        float currentSaturation = baseSaturation;
+        float targetBrightness = baseBrightness;
+        float targetSaturation = baseSaturation;
+
+        while (campfireBgImage != null)
+        {
+            // 随机设置目标亮度和饱和度
+            targetBrightness = baseBrightness + Random.Range(-0.12f, 0.12f);
+            targetSaturation = baseSaturation + Random.Range(-0.08f, 0.08f);
+
+            float elapsed = 0f;
+            float flickerDuration = Random.Range(0.08f, 0.3f);
+            float startBright = currentBrightness;
+            float startSat = currentSaturation;
+
+            while (elapsed < flickerDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / flickerDuration;
+                currentBrightness = Mathf.Lerp(startBright, targetBrightness, t);
+                currentSaturation = Mathf.Lerp(startSat, targetSaturation, t);
+                campfireBgImage.color = new Color(currentBrightness, currentSaturation * currentBrightness, (currentSaturation - 0.1f) * currentBrightness, 0.9f);
+                yield return null;
+            }
+
+            // 偶尔的"爆燃"效果
+            if (Random.value < 0.1f)
+            {
+                currentBrightness = baseBrightness + 0.15f;
+                campfireBgImage.color = new Color(currentBrightness, currentBrightness * 0.9f, currentBrightness * 0.6f, 0.92f);
+                yield return new WaitForSeconds(0.05f);
+            }
+
+            yield return null;
+        }
     }
 
     void Refresh()

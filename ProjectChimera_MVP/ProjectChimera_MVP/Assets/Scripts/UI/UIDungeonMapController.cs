@@ -67,10 +67,39 @@ public class UIDungeonMapController : MonoBehaviour
             return;
         }
 
+        // 根据当前地牢类型动态切换背景
+        RefreshBackground(session);
+
         currentMap = session.currentMap;
         RefreshMap();
         panel.SetActive(true);
         AudioManager.Instance?.PlaySFX(AudioKeys.SFX_UI_OPEN);
+    }
+
+    /// <summary>
+    /// 根据 DungeonSession 的 dungeonType 动态刷新背景图
+    /// </summary>
+    void RefreshBackground(DungeonSession session)
+    {
+        if (panel == null) return;
+        var bgTransform = panel.transform.Find("BG");
+        if (bgTransform == null) return;
+        var bgImg = bgTransform.GetComponent<Image>();
+        if (bgImg == null) return;
+
+        string bgPath = session.GetBackgroundPath();
+        var dungeonBg = Resources.Load<Sprite>(bgPath);
+        if (dungeonBg != null)
+        {
+            bgImg.sprite = dungeonBg;
+            bgImg.color = new Color(0.5f, 0.5f, 0.55f, 0.95f);
+        }
+        else
+        {
+            bgImg.sprite = null;
+            bgImg.color = new Color(0.05f, 0.05f, 0.1f, 0.97f);
+            Log.Warn($"[DungeonMap] 找不到地牢背景: {bgPath}，使用纯色回退");
+        }
     }
 
     public void Close()
@@ -114,7 +143,18 @@ public class UIDungeonMapController : MonoBehaviour
         bgRt.offsetMin = Vector2.zero;
         bgRt.offsetMax = Vector2.zero;
         var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.05f, 0.05f, 0.1f, 0.97f);
+        // 使用 ruins.png 作为地牢UI背景，失败则回退到深色
+        var dungeonBg = Resources.Load<Sprite>("Backgrounds/Dungeon/ruins");
+        if (dungeonBg != null)
+        {
+            bgImg.sprite = dungeonBg;
+            bgImg.color = new Color(0.5f, 0.5f, 0.55f, 0.95f);
+            bgImg.type = Image.Type.Simple;
+        }
+        else
+        {
+            bgImg.color = new Color(0.05f, 0.05f, 0.1f, 0.97f);
+        }
         bgImg.raycastTarget = true;
 
         floorLabel = CreateLabel(root, "FloorLabel", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -15), "地牢 第 1 层", 22, Color.yellow);

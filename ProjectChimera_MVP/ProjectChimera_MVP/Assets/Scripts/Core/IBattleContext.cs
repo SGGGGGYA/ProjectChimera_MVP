@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// 战斗 UI/状态上下文 — TurnManager / Command / StressManager 共用的 BattleManager 能力抽象。
-/// 定义在 ProjectChimera.Core（基础设施层），由 ProjectChimera.Scripts 中的 BattleManager 实现。
+/// 定义在 ProjectChimera.Core（基础设施层），由 ProjectChimera.Battle 中的 BattleManager 实现。
 /// 让 TurnManager / Command / StressManager 不再直接引用 BattleManager 类，消除循环依赖。
 ///
 /// 调用方需要：

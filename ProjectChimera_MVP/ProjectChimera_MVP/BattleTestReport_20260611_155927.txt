@@ -1,0 +1,40 @@
+============================================
+  Project Chimera 战斗系统自动化测试报告
+  生成时间: 2026-06-11 15:59:27
+  总耗时: 5.10秒
+============================================
+
+测试结果: 0/8 通过
+
+[失败] 2v2正常战斗
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 4v4极限战斗
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 1v3生存
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 1v4全灭
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 撤退
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 空敌人
+    耗时: 5004ms  回合: 1
+    详情: 战斗结束=False, 回合=1, 耗时=5004ms
+
+[失败] 玩家全死
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+
+[失败] 长时间战斗防死循环
+    耗时: 0ms  回合: 0
+    详情: 运行时异常: The following game object is invoking the DontDestroyOnLoad method: AudioManager. Notice that DontDestroyOnLoad can only be used in play mode and, as such, cannot be part of an editor script.
+

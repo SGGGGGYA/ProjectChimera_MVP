@@ -3,6 +3,8 @@ using ProjectChimera.Core;
 
 public static class CombatSystem
 {
+    // ==================== P1 防御：所有公开方法均已包含 attacker / target null 检查 ====================
+
     const float BASE_HIT_CHANCE = 0.75f;
     const float HIT_ACC_SCALE = 0.003f;
     const float HIT_MIN = 0.10f;
@@ -16,12 +18,14 @@ public static class CombatSystem
 
     public static bool IsHit(UnitData attacker, UnitData target)
     {
+        if (attacker == null || target == null) return false;
         float finalChance = Mathf.Clamp(BASE_HIT_CHANCE + (attacker.ACC - target.DOD) * HIT_ACC_SCALE, HIT_MIN, HIT_MAX);
         return RandomProvider.Current.Value < finalChance;
     }
 
     public static bool IsCrit(UnitData attacker, UnitData target)
     {
+        if (attacker == null || target == null) return false;
         float rawHit = BASE_HIT_CHANCE + (attacker.ACC - target.DOD) * HIT_ACC_SCALE;
         float overflow = Mathf.Max(0, rawHit - HIT_MAX);
         float finalCrit = Mathf.Clamp(BASE_CRIT + attacker.CRT * CRT_CRIT_SCALE + overflow * CRIT_OVERFLOW_RATE, CRIT_MIN, CRIT_MAX);
@@ -30,6 +34,7 @@ public static class CombatSystem
 
     public static int CalculateDamage(UnitData attacker, UnitData target, SkillData skill, bool isCrit = false)
     {
+        if (attacker == null || target == null || skill == null) return 0;
         float baseVal = skill.baseDamage + attacker.weaponAttack;
         float scaling = attacker.GetEffectiveSTR() * skill.strScaling + attacker.AGI * skill.agiScaling;
         float raw = baseVal + scaling;
@@ -51,6 +56,7 @@ public static class CombatSystem
 
     public static bool IsStatusHit(UnitData attacker, UnitData target, float baseChance)
     {
+        if (attacker == null || target == null) return false;
         float intMod = attacker.GetEffectiveINT() * 0.01f;
         float finalChance = Mathf.Clamp(baseChance + intMod, 0.05f, 0.95f);
         return RandomProvider.Current.Value < finalChance;

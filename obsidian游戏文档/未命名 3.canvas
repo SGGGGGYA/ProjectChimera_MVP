@@ -1,0 +1,12 @@
+{
+	"nodes":[
+		{"id":"9c53401fa64f5ea6","x":-240,"y":360,"width":400,"height":400,"type":"file","file":"设计文档/角色系统融合重构方案.md"},
+		{"id":"b2b3fb366c2ab1ed","x":-1000,"y":440,"width":400,"height":400,"type":"file","file":"未命名.canvas"},
+		{"id":"a1136a30bdc9f96b","x":-360,"y":840,"width":400,"height":400,"type":"file","file":"未命名.canvas"}
+	],
+	"edges":[
+		{"id":"fdeb889b10ff667a","fromNode":"b2b3fb366c2ab1ed","fromSide":"bottom","toNode":"9c53401fa64f5ea6","toSide":"top"},
+		{"id":"630ab37bdcdf54c1","fromNode":"9c53401fa64f5ea6","fromSide":"bottom","toNode":"a1136a30bdc9f96b","toSide":"top"},
+		{"id":"3bad9b1f64bead44","fromNode":"a1136a30bdc9f96b","fromSide":"left","toNode":"b2b3fb366c2ab1ed","toSide":"bottom"}
+	]
+}

@@ -1,0 +1,62 @@
+﻿{
+    "monsters":  {
+
+                 },
+    "heroes":  {
+                   "crusader":  {
+                                    "skins":  [
+                                                  "base"
+                                              ],
+                                    "default_skin":  "base",
+                                    "animations":  {
+                                                       "attack":  "SpineCharacters/DD1/crusader/base/crusader.sprite.attack_banner.skel",
+                                                       "idle":  "SpineCharacters/DD1/crusader/base/crusader.sprite.idle.skel",
+                                                       "combat":  "SpineCharacters/DD1/crusader/base/crusader.sprite.combat.skel"
+                                                   }
+                                },
+                   "abomination":  {
+                                       "skins":  [
+                                                     "base"
+                                                 ],
+                                       "default_skin":  "base",
+                                       "animations":  {
+                                                          "attack":  "SpineCharacters/DD1/abomination/base/abomination.sprite.attack_barf.skel",
+                                                          "idle":  "SpineCharacters/DD1/abomination/base/abomination.sprite.idle.skel",
+                                                          "combat":  "SpineCharacters/DD1/abomination/base/abomination.sprite.combat.skel"
+                                                      }
+                                   },
+                   "plague_doctor":  {
+                                         "skins":  [
+                                                       "base"
+                                                   ],
+                                         "default_skin":  "base",
+                                         "animations":  {
+                                                            "attack":  "SpineCharacters/DD1/plague_doctor/base/plague_doctor.sprite.attack_blast.skel",
+                                                            "idle":  "SpineCharacters/DD1/plague_doctor/base/plague_doctor.sprite.idle.skel",
+                                                            "combat":  "SpineCharacters/DD1/plague_doctor/base/plague_doctor.sprite.combat.skel"
+                                                        }
+                                     },
+                   "vestal":  {
+                                  "skins":  [
+                                                "base"
+                                            ],
+                                  "default_skin":  "base",
+                                  "animations":  {
+                                                     "attack":  "SpineCharacters/DD1/vestal/base/vestal.sprite.attack_heal.skel",
+                                                     "idle":  "SpineCharacters/DD1/vestal/base/vestal.sprite.idle.skel",
+                                                     "combat":  "SpineCharacters/DD1/vestal/base/vestal.sprite.combat.skel"
+                                                 }
+                              },
+                   "highwayman":  {
+                                      "skins":  [
+                                                    "base"
+                                                ],
+                                      "default_skin":  "base",
+                                      "animations":  {
+                                                         "attack":  "SpineCharacters/DD1/highwayman/base/highwayman.sprite.attack_hipshot.skel",
+                                                         "idle":  "SpineCharacters/DD1/highwayman/base/highwayman.sprite.idle.skel",
+                                                         "combat":  "SpineCharacters/DD1/highwayman/base/highwayman.sprite.combat.skel"
+                                                     }
+                                  }
+               }
+}

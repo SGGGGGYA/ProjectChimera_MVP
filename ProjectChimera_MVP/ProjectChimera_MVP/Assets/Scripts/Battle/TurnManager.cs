@@ -29,6 +29,15 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
     public static TurnManager Instance;
 
     /// <summary>
+    /// 编辑器测试模式：为 true 时不使用 StartCoroutine 驱动敌人回合，
+    /// 而是把敌人协程暴露给外部 ManualStep 调用。
+    /// </summary>
+    public static bool IsEditorTestMode = false;
+
+    /// <summary>编辑器测试模式下活跃的敌人回合协程（手动 Step 用）</summary>
+    public System.Collections.IEnumerator ActiveEnemyCoroutine { get; set; }
+
+    /// <summary>
     /// 注入的 BattleManager 上下文（由 BattleSetup 在 StartBattle 时设置）。
     /// 在调用 BattleSetup 前保持 NullBattleContext，所有调用安静 no-op，行为与旧
     /// `FindObjectOfType<BattleManager>() == null` 兜底一致。
@@ -67,18 +76,22 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
     public void InitializeBattle(List<UnitData> playerUnits, List<UnitData> enemyUnits)
     {
         allUnits.Clear();
-        allUnits.AddRange(playerUnits);
-        allUnits.AddRange(enemyUnits);
+        if (playerUnits != null) allUnits.AddRange(playerUnits);
+        if (enemyUnits != null) allUnits.AddRange(enemyUnits);
 
         EnemyAIEngine.ResetAll();
 
         CalculateTurnOrder();
         StartRound();
+
+        // 战斗初始化完成，允许触发结束面板
+        var bm = Context.RawContext as BattleManager;
+        if (bm != null) bm.battleReady = true;
     }
 
     void CalculateTurnOrder()
     {
-        turnOrder = new List<UnitData>(allUnits);
+        turnOrder = new List<UnitData>(allUnits.FindAll(u => u != null));
         turnOrder.Sort((a, b) => b.AGI.CompareTo(a.AGI));
 
         Log.Info("[TurnManager] 回合顺序（按AGI排序）：");
@@ -104,6 +117,26 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
         if (Context.IsBattleOver)
             return;
 
+        // 如果某一方已经全灭，结束战斗
+        bool allEnemyDead = Context.GetFirstAlive(Context.EnemyUnits) == null;
+        bool allPlayerDead = Context.GetFirstAlive(Context.PlayerUnits) == null;
+        if (allEnemyDead || allPlayerDead)
+        {
+            BattleEvents.RaiseBattleEnded(allEnemyDead);
+            return;
+        }
+
+        // 如果回合序列为空，尝试重建；若仍为空则结束战斗
+        if (turnOrder == null || turnOrder.Count == 0)
+        {
+            CalculateTurnOrder();
+            if (turnOrder == null || turnOrder.Count == 0)
+            {
+                BattleLog.Add("[TurnManager] 没有可行动单位，战斗结束");
+                return;
+            }
+        }
+
         if (currentTurnIndex >= turnOrder.Count)
         {
             roundCount++;
@@ -112,6 +145,13 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
         }
 
         currentUnit = turnOrder[currentTurnIndex];
+
+        if (currentUnit == null)
+        {
+            currentTurnIndex++;
+            StartNextTurn();
+            return;
+        }
 
         if (currentUnit.currentHP <= 0)
         {
@@ -141,8 +181,7 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
         {
             BattleLog.Add($"{currentUnit.unitName} 因流血而死亡！");
             Context.SpawnDamagePopup(currentUnit.transform.position + Vector3.up * 1.5f, 0, PopupType.Damage);
-            bool allEnemyDead = Context.GetFirstAlive(Context.EnemyUnits) == null;
-            bool allPlayerDead = Context.GetFirstAlive(Context.PlayerUnits) == null;
+            // 复用 StartNextTurn 入口已计算的全灭标记（避免内层作用域重名）
             if (allEnemyDead || allPlayerDead)
             {
                 currentTurnIndex++;
@@ -161,8 +200,7 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
         if (currentUnit.currentHP <= 0)
         {
             BattleLog.Add($"{currentUnit.unitName} 在压力判定后死亡！");
-            bool allEnemyDead = Context.GetFirstAlive(Context.EnemyUnits) == null;
-            bool allPlayerDead = Context.GetFirstAlive(Context.PlayerUnits) == null;
+            // 复用 StartNextTurn 入口已计算的全灭标记（避免内层作用域重名）
             if (allEnemyDead || allPlayerDead)
             {
                 currentTurnIndex++;
@@ -208,7 +246,15 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
         {
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(AudioKeys.SFX_UI_HOVER);
-            StartCoroutine(EnemyTurn());
+            if (IsEditorTestMode)
+            {
+                // 编辑器模式：不依赖 StartCoroutine，暴露协程给测试循环手动驱动
+                ActiveEnemyCoroutine = EnemyTurn();
+            }
+            else
+            {
+                StartCoroutine(EnemyTurn());
+            }
         }
     }
 
@@ -231,11 +277,20 @@ public class TurnManager : MonoBehaviour, ITurnStateProvider
 
     IEnumerator EnemyTurn()
     {
+        // P1 防御：调用 AI 前确认当前回合单位仍存活
+        if (currentUnit == null || currentUnit.currentHP <= 0)
+        {
+            Log.Warn("[TurnManager] EnemyTurn 当前单位无效，跳过敌人回合");
+            EndTurn();
+            yield break;
+        }
+
         // 通过 Context.RawContext 逃生通道拿到 BattleManager（仅在 EnemyAIEngine 完全迁移到
         // IBattleContext 之前使用；TODO: 重构 EnemyAIEngine 后改用 Context）。
         BattleManager bm = Context.RawContext as BattleManager;
         if (bm == null)
         {
+            Log.Warn("[TurnManager] EnemyTurn 无法获取 BattleManager 引用，跳过敌人回合");
             EndTurn();
             yield break;
         }
